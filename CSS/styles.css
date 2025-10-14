@@ -1,0 +1,192 @@
+/* ==============================
+   Base Settings
+   ============================== */
+   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+
+   :root {
+     --bg-dark: #0f1115;
+     --bg-light: #181b21;
+     --text-color: #e2e2e2;
+     --accent: #4da3ff;
+     --accent-light: #8ecaff;
+     --muted: #9a9a9a;
+     --card-bg: #1d2028;
+     --border-color: #2a2e38;
+   }
+   
+   * {
+     margin: 0;
+     padding: 0;
+     box-sizing: border-box;
+   }
+   
+   body {
+     font-family: 'Inter', 'Segoe UI', sans-serif;
+     background-color: var(--bg-dark);
+     color: var(--text-color);
+     line-height: 1.7;
+     letter-spacing: 0.03em;
+     scroll-behavior: smooth;
+   }
+   
+   /* ==============================
+      Header (Hero)
+      ============================== */
+   .hero {
+     text-align: center;
+     padding: 6rem 2rem 4rem 2rem;
+     background: linear-gradient(180deg, #13161b 0%, #0f1115 100%);
+     border-bottom: 1px solid var(--border-color);
+     box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+     animation: fadeIn 1s ease-in-out;
+   }
+   
+   .hero h1 {
+     font-size: 2.8rem;
+     font-weight: 700;
+     color: var(--accent);
+     margin-bottom: 0.8rem;
+   }
+   
+   .hero .subtitle {
+     font-size: 1.2rem;
+     color: var(--muted);
+   }
+   
+   /* ==============================
+      Sections
+      ============================== */
+   .section {
+     padding: 4rem 2rem;
+     max-width: 900px;
+     margin: 0 auto;
+     opacity: 0;
+     transform: translateY(20px);
+     animation: fadeUp 0.8s ease forwards;
+   }
+   
+   .section h2 {
+     font-size: 1.8rem;
+     color: var(--accent);
+     margin-bottom: 1.5rem;
+     border-left: 4px solid var(--accent);
+     padding-left: 12px;
+   }
+   
+   .section p {
+     margin-bottom: 1rem;
+     color: var(--text-color);
+   }
+   
+   /* ==============================
+      Diagram
+      ============================== */
+   .diagram {
+     text-align: center;
+     margin: 2rem 0;
+   }
+   
+   .diagram img {
+     width: 100%;
+     max-width: 700px;
+     border-radius: 12px;
+     box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+     transition: transform 0.3s ease;
+   }
+   
+   .diagram img:hover {
+     transform: scale(1.02);
+   }
+   
+   .diagram figcaption {
+     font-size: 0.9rem;
+     color: var(--muted);
+     margin-top: 0.5rem;
+   }
+   
+   /* ==============================
+      Concept Blocks
+      ============================== */
+   .highlight {
+     background-color: var(--bg-light);
+     border-top: 1px solid var(--border-color);
+     border-bottom: 1px solid var(--border-color);
+   }
+   
+   .concept-block {
+     background-color: var(--card-bg);
+     border: 1px solid var(--border-color);
+     border-radius: 12px;
+     padding: 1.5rem;
+     margin-bottom: 1.5rem;
+     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+     transition: transform 0.2s ease;
+   }
+   
+   .concept-block:hover {
+     transform: translateY(-4px);
+   }
+   
+   .concept-block h3 {
+     color: var(--accent-light);
+     margin-bottom: 0.8rem;
+   }
+   
+   .concept-block p {
+     color: var(--text-color);
+   }
+   
+   /* ==============================
+      Table of Contents (TOC)
+      ============================== */
+   .toc {
+     list-style: none;
+     margin-top: 1.5rem;
+   }
+   
+   .toc li {
+     margin: 0.6rem 0;
+   }
+   
+   .toc a {
+     text-decoration: none;
+     color: var(--accent);
+     font-weight: 600;
+     transition: color 0.2s ease;
+   }
+   
+   .toc a:hover {
+     color: var(--accent-light);
+   }
+   
+   /* ==============================
+      Footer
+      ============================== */
+   .footer {
+     text-align: center;
+     padding: 2rem 0;
+     font-size: 0.9rem;
+     color: var(--muted);
+     border-top: 1px solid var(--border-color);
+     margin-top: 4rem;
+   }
+   
+   /* ==============================
+      Animations
+      ============================== */
+   @keyframes fadeIn {
+     from { opacity: 0; }
+     to { opacity: 1; }
+   }
+   
+   @keyframes fadeUp {
+     from {
+       opacity: 0;
+       transform: translateY(20px);
+     }
+     to {
+       opacity: 1;
+       transform: translateY(0);
+     }
+   }
+   

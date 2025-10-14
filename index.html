@@ -1,0 +1,104 @@
+<!--
+
+                                      +%%%%                                                         
+       &%@#%%%%%%#@=                      #=                                                        
+         #=      =@=                      #=                                                        
+         #=       =     =&%%%&            #=           +%%%%+=&       &%%%&=     +%%=+%%%%=         
+         #=  +%        +&=   +#+          #=         +%+    =%@=    &&     &&=     @@%=  =%%        
+         @@@@@#               &%          #=        &%             #=       =#     #=      #=       
+         #=  +%        &%+++++%%          #=        #+            =#         #+    #=      #=       
+         #=           #&      &%          #=        %&             #=        #=    #=      #=       
+         #=           #+     +@%          #=         @+       %%   +#       %&     #=      #=       
+       &%@#%%%=       =&%%%%&+&@%+   +%%%%@#%%%%      +&%%%%%&=      +&%%%&+=    &%@#%   +%@#&      
+
+-->
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pragmatic Hybrid Entity Component System</title>
+  <meta name="description" content="Pragmatic Hybrid Entity Component System (PH-ECS) - 実用性を重視したハイブリッドECSエンジンの設計思想とアーキテクチャ解説。">
+  <link rel="stylesheet" href="CSS/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <h1>Pragmatic Hybrid Entity Component System</h1>
+  <p class="subtitle">理論よりも実用を ― Component指向とECSの融合設計</p>
+</header>
+
+<section id="introduction" class="section">
+  <h2>Introduction</h2>
+  <p>
+    <strong>Pragmatic Hybrid Entity Component System（PH-ECS）</strong> は、  
+    ゲーム開発において「純粋なECSでは得られない柔軟性」と  
+    「ECSの分割する考えによるコードの明白さ」を両立させるために設計された  
+    <strong>実用的ハイブリッドアーキテクチャ</strong> です。
+  </p>
+  <p>
+    このエンジンは、コンポーネントを単なるデータ構造ではなく、  
+    <strong>データ構造＋補助メソッド</strong>として扱います。
+  </p>
+</section>
+
+<section id="concept" class="section highlight">
+  <h2>Concept – Pragmatic & Hybrid</h2>
+
+  <div class="concept-block">
+    <h3>1. Pragmatic（実用主義）</h3>
+    <p>
+      純粋ECSの理論美よりも「現場で使える設計」を優先。  
+      コンポーネントはデータのみでなく、Getter / Setter / EditorRender / Serialize / Deserializeのような
+      <strong>補助的な動作関数を持つ</strong>ことを容認します。
+
+      <br>
+      類似の設計として
+      <a href="https://love2d.org/wiki/tiny-ecs_(%E6%97%A5%E6%9C%AC%E8%AA%9E)">tiny-ecs</a>があります。
+    </p>
+  </div>
+
+  <div class="concept-block">
+    <h3>2. Hybrid（複合型）</h3>
+    <p>
+      内部はECS構造を採用しながら、エディタではコンポーネント指向的UIを提供。  
+      開発者は「ECSとして実行し、コンポーネントとして編集する」という  
+      双方向のワークフローを得られます。
+
+      <br>
+      同義の設計として
+      <a href="https://www.youtube.com/watch?v=vzF00Wb6wNY">Unity ECS</a>があります。
+    </p>
+  </div>
+
+  <div class="concept-block">
+    <h3>3. Editor Integration</h3>
+    <p>
+      すべてのECS要素はエディタと強く統合され、  
+      コンポーネント追加・削除・DLLホットリロード・Pythonプラグイン実行などを  
+      一元管理可能です。
+    </p>
+  </div>
+</section>
+
+<section id="contents" class="section">
+  <h2>Contents</h2>
+  <p>以下のページで、PH-ECSの各要素とエディタ機能を詳細に解説しています。</p>
+  <nav>
+    <ul class="toc">
+      <li><a href="architecture.html">▶ Architecture</a> – ECS構造とデータフローの詳細</li>
+      <li><a href="editor.html">▶ Editor</a> – 各エディタウィンドウと機能の紹介</li>
+      <li><a href="showcase.html">▶ Showcase</a> – 実際のエディタ画面とコード例</li>
+      <li><a href="philosophy.html">▶ Philosophy</a> – Pragmatic思想と他方式との比較</li>
+      <li><a href="about.html">▶ About</a> – 開発者コメント・GitHubリンク</li>
+    </ul>
+  </nav>
+</section>
+
+<footer class="footer">
+  <p>© 2025 Falcon Engine Project – Pragmatic Hybrid ECS</p>
+</footer>
+
+</body>
+</html>

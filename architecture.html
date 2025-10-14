@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+
+  <title>Architecture | Pragmatic Hybrid Entity Component System</title>
+  <meta name="description" content="Pragmatic Hybrid ECSの内部構造とデータフローの詳細。Entity・Component・Systemの関係とRuntime統合型エディタ構成を解説。">
+  <link rel="stylesheet" href="CSS/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <h1>Architecture</h1>
+  <p class="subtitle">PH-ECSの内部構造とデータフロー</p>
+</header>
+
+<section id="architecture-diagram" class="section">
+  <h2>Architecture Diagram</h2>
+  <figure class="diagram">
+    <img src="Image/Pragmatic Hybrid Entity Component System.png" alt="PH-ECS Architecture Diagram">
+    <figcaption>図1. PH-ECS 全体構成図</figcaption>
+  </figure>
+
+  <ul>
+    <li><strong>Entity：</strong> IDベースのオブジェクト。Component群の集合体。</li>
+    <li><strong>Component：</strong> データ構造＋補助メソッド（Getter / Setter / Editor描画 / Serialize / Deserialize）。</li>
+    <li><strong>System：</strong> Component群に対して一括で処理を行うロジック層。</li>
+    <li><strong>Module：</strong> ComponentとSystemを合わせた単位。機能単位の基本構成要素。</li>
+    <li><strong>Engine Core：</strong> RuntimeおよびEditorを統括する中心層。DLLやRendererも統合。</li>
+  </ul>
+</section>
+
+<section id="renderer layer" class="section highlight">
+    <h2>Renderer Layer</h2>
+    <div class="concept-block">
+      <h3>DirectX12</h3>
+      <p>
+        <a href="https://www.nuget.org/packages/Microsoft.Direct3D.D3D12">DirectX12(DX12)</a>を利用したレンダラーを使用しています。
+        コマンドリスト型の描画命令を行うことでの高速化を行います。
+        <br>
+        また、Pipeline State Object(PSO)をキャッシュ化しPSOの都度作成するコストをカットしています。
+        <pre><code class="language-cpp">
+std::string Pipeline::GeneratePSOKey(BlendMode blendMode, CullMode cullMode, PrimitiveTopologyType topologyType,
+  bool isDepth, bool isDepthMask, int rtvCount, bool isWireFrame) const
+{
+    return std::to_string(static_cast&lt;int&gt;(blendMode)) + "_" +
+      std::to_string(static_cast&lt;int&gt;(cullMode)) + "_" +
+      std::to_string(static_cast&lt;int&gt;(topologyType)) + "_" +
+      (isDepth ? "1" : "0") + "_" +
+      (isDepthMask ? "1" : "0") + "_" +
+      std::to_string(rtvCount) + "_" +
+      (isWireFrame ? "1" : "0");
+}
+        </code></pre>
+        上記のコードでカギを作成し<a href="https://refactoring.guru/ja/design-patterns/flyweight">フライウェイト形式</a>でPSOを管理します。
+        <br>
+        さらに、Vertex Shader(VS)に渡す頂点バッファをStruct of Arrays(SoA)にすることでキャッシュライン上を同義の情報で満たすため、
+        プリフェッチによるキャッシュヒット率の向上を見込めます。
+        <pre><code class="language-cpp">
+for (auto&& layout : m_semanticsLayout)
+{
+	switch (layout)
+	{
+	case InputLayout::POSITION:
+		CreateVertexBuffer(vertices.Position, sizeof(Math::Vector3),
+			ansi_to_wide(_CRT_STRINGIZE_(vertices.Position)), &m_pPosBuffer, m_posView, m_views, vertexCount);
+		break;
+	case InputLayout::TEXCOORD:
+		CreateVertexBuffer(vertices.UV, sizeof(Math::Vector2),
+			ansi_to_wide(_CRT_STRINGIZE_(vertices.UV)), &m_pUVBuffer, m_UVView, m_views, vertexCount);
+		break;
+	case InputLayout::NORMAL:
+		CreateVertexBuffer(vertices.Normal, sizeof(Math::Vector3),
+			ansi_to_wide(_CRT_STRINGIZE_(vertices.Normal)), &m_pNorBuffer, m_norView, m_views, vertexCount);
+		break;
+                                                      ・
+                                                      ・
+                                                      ・
+        </code></pre>
+        上記のコードで頂点バッファをVSのレイアウトの分作成します。
+        <br>
+        VSのhlslもしくはcsoを解析したときに引数のレイアウト情報を抽出するため、引数が変動してもランタイムを変更する必要はなく柔軟に対応できます。
+      </p>
+  </section>
+
+<section id="dataflow" class="section">
+  <h2>Data Flow</h2>
+  <p>
+    PH-ECSのデータは、エディタ操作からランタイム処理まで一貫して同じECS構造上で管理されます。  
+    以下はその代表的な流れです。
+  </p>
+
+  <div class="concept-block">
+    <h3>1. Editor Interaction</h3>
+    <p>
+      ユーザーがエディタ上でEntityやComponentを操作します。
+      Componentの補助メソッド <code>RenderEditor()</code> により、  
+      編集UIがリアルタイムに反映されます。
+      ランタイム側で作成された<a href="https://github.com/ocornut/imgui">ImGui</a>のContextをDLL側に渡すことでScriptModuleでも <code>RenderEditor()</code> で編集UIを作成できます。
+    </p>
+  </div>
+
+  <div class="concept-block">
+    <h3>2. Serialization</h3>
+    <p>
+      SceneやEntityはJSON形式で保存されます。  
+      各Componentは自前の <code>Serialize()</code> / <code>Deserialize()</code> を実装し、  
+      データを安全に入出力します。
+    </p>
+  </div>
+
+  <div class="concept-block">
+    <h3>3. Runtime Execution</h3>
+    <p>
+      シリアライズされたデータをRuntimeへロードし、  
+      Systemが各Component群を処理します。  
+      Component自身はロジックを持たないため、  
+      System側が一貫して制御を行います。
+    </p>
+  </div>
+
+  <div class="concept-block">
+    <h3>4. Hot Reload via DLL</h3>
+    <p>
+        PDBファイルの更新を監視して差分があれば現在のシーンをJSON形式でテンポラリーシーンとして保存し、
+        Runtime側で持っているDLL側で生成したModuleデータをクリアしてDLLをアンロードします。
+        そして、DLLをコピーして再ロードを行います。
+        最後に、テンポラリーシーンを読込、システムを再生成して不要になったテンポラリーシーンを破棄し一連を終了します。
+    </p>
+  </div>
+</section>
+
+<section id="hybridization" class="section highlight">
+  <h2>Hybridization – Component指向 × ECS構造</h2>
+  <p>
+    PH-ECSは、Componentを従来の「単なるデータ」でも「自己完結クラス」でもない形として設計しています。  
+    Componentはデータ保持＋最小限の補助機能に限定され、  
+    あらゆる処理ロジックはSystem側に実装されます。
+  </p>
+
+  <div class="concept-block">
+    <h3>Componentの責務（厳守）</h3>
+    <ul>
+      <li>Getter / Setter</li>
+      <li>Editor表示用 <code>RenderEditor()</code></li>
+      <li>シリアライズ <code>Serialize()</code> / <code>Deserialize()</code></li>
+    </ul>
+    <p>
+      これ以外のロジックを持たせないことで、Systemとの明確な責務分離を維持しています。
+    </p>
+  </div>
+</section>
+
+<section id="navigation" class="section">
+  <h2>Next Pages</h2>
+  <p>以下のページで、PH-ECSの実装・エディタ機能・思想をさらに詳しく解説しています。</p>
+
+  <ul class="toc">
+    <li><a href="editor.html">▶ Editor – 各エディタウィンドウと機能一覧</a></li>
+    <li><a href="showcase.html">▶ Showcase – 実際のエディタ画面とコード例</a></li>
+    <li><a href="philosophy.html">▶ Philosophy – Pragmatic設計思想の核心</a></li>
+    <li><a href="index.html">◀ Back to Top – トップページへ戻る</a></li>
+  </ul>
+</section>
+
+<footer class="footer">
+  <p>© 2025 Falcon Engine Project – Pragmatic Hybrid ECS</p>
+</footer>
+
+</body>
+</html>
