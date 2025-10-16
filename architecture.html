@@ -84,16 +84,12 @@ for (auto&& layout : m_semanticsLayout)
         </code></pre>
         上記のコードで頂点バッファをVSのレイアウトの分作成します。
         <br>
-        VSのhlslもしくはcsoを解析したときに引数のレイアウト情報を抽出するため、引数が変動してもランタイムを変更する必要はなく柔軟に対応できます。
+        VSのhlslもしくはcsoを解析したときに引数のレイアウト情報を抽出するため、引数が変動してもRuntimeを変更する必要はなく柔軟に対応できます。
       </p>
   </section>
 
 <section id="dataflow" class="section">
   <h2>Data Flow</h2>
-  <p>
-    PH-ECSのデータは、エディタ操作からランタイム処理まで一貫して同じECS構造上で管理されます。  
-    以下はその代表的な流れです。
-  </p>
 
   <div class="concept-block">
     <h3>1. Editor Interaction</h3>
@@ -101,7 +97,7 @@ for (auto&& layout : m_semanticsLayout)
       ユーザーがエディタ上でEntityやComponentを操作します。
       Componentの補助メソッド <code>RenderEditor()</code> により、  
       編集UIがリアルタイムに反映されます。
-      ランタイム側で作成された<a href="https://github.com/ocornut/imgui">ImGui</a>のContextをDLL側に渡すことでScriptModuleでも <code>RenderEditor()</code> で編集UIを作成できます。
+      Runtime側で作成された<a href="https://github.com/ocornut/imgui">ImGui</a>のContextをDLL側に渡すことでScriptModuleでも <code>RenderEditor()</code> で編集UIを作成できます。
     </p>
   </div>
 

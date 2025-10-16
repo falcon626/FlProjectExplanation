@@ -1,0 +1,643 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+
+  <title>Editor | Pragmatic Hybrid Entity Component System</title>
+  <meta name="description" content="PH-ECSの統合エディタ構造とUIデザイン。リアルタイム操作と即時反映を可能にするランタイム一体型エディタ。">
+  <link rel="stylesheet" href="CSS/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <h1>Editor</h1>
+  <p class="subtitle">ランタイム統合型エディタのビジュアルデザインと構造</p>
+</header>
+
+<section id="overview" class="section">
+  <h2>Editor Overview</h2>
+  <p>
+    PH-ECSのエディタは独立したアプリケーションではなく、<strong>Runtimeに統合されたインタラクティブUI</strong>として動作します。  
+    これにより、ゲーム実行中でもEntity・Component・Systemをリアルタイムに編集・反映できます。
+  </p>
+  <p>
+    <strong><a href="https://github.com/ocornut/imgui">ImGui</a></strong>をベースとした即時モードUIを採用し、軽量かつ高応答なエディタ操作を実現しています。
+  </p>
+
+  <figure class="diagram">
+    <img src="Image/Editor.png" alt="Editor Layout Diagram">
+    <figcaption>図1. ランタイム統合型エディタ構成</figcaption>
+  </figure>
+</section>
+
+<section id="core-windows" class="section highlight">
+  <h2>Editor Windows</h2>
+  <p>
+    各ウィンドウは独立したモジュールとして構築され、エンジン内部のデータと双方向に通信します。  
+    UIは統一されたテーマとアニメーションで構成され、操作感の一貫性を重視しています。
+  </p>
+
+  <div class="window-grid">
+    <div class="window-card">
+      <h3>🎮 GameViewWindow</h3>
+      <p>
+        実際のゲーム画面をプレビュー。エディタのサイズ変更に追従しつつ、  
+        固定アスペクト比を維持します。  
+        <strong>Scene View</strong>と同期しており、プレイヤー視点やカメラ切替をリアルタイムで反映可能です。
+
+      </p>
+    </div>
+<pre><code class="language-cpp">
+// --- 抜粋: Game Viewport Window --- 
+                                                ・
+                                                ・
+                                                ・
+
+    auto windowContentSize      { ImGui::GetContentRegionAvail() };
+    auto gameScreenOriginalSize { ImVec2{ static_cast&lt;float&gt;m_windowW, static_cast&lt;float&gt;m_windowH } };
+    auto aspectRatio            { gameScreenOriginalSize.x / gameScreenOriginalSize.y };
+    auto scaledWidth            { windowContentSize.x };
+    auto scaledHeight           { scaledWidth / aspectRatio };
+
+    if (scaledHeight &gt; windowContentSize.y)
+    {
+        scaledHeight = windowContentSize.y;
+        scaledWidth  = scaledHeight * aspectRatio;
+    }
+
+    auto offset { ImVec2{
+        (windowContentSize.x - scaledWidth)  * Def::Half,
+        (windowContentSize.y - scaledHeight) * Def::Half
+    } };
+
+    ImGui::SetCursorPos(ImGui::GetCursorPos() + offset);
+    ImGui::Image(texId, ImVec2{ scaledWidth, scaledHeight });
+}
+</code></pre>
+
+<div class="concept-block">
+  <h4>📐 技術的ポイント</h4>
+  <ul>
+    <li>ウィンドウのリサイズに応じて動的にスケーリングを行い、<strong>アスペクト比を厳密に保持</strong>。</li>
+    <li><code>ImGui::GetContentRegionAvail()</code> と <code>ImGui::SetCursorPos()</code> を用いて、中心補正による美しいレイアウトを実現。</li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>📦 AssetsWindow</h3>
+      <p>
+        アセットブラウザ。<strong>Tree表示</strong>と<strong>Current表示</strong>の2モードを搭載。  
+        ドラッグ＆ドロップ、右クリックメニュー、外部ファイルの取り込みにも対応。  
+        拡張子に応じたプレビューアイコンを自動表示します。
+      </p>
+    </div>
+
+    <pre><code class="language-cpp">
+// --- 抜粋: FlFileEditor::ShowAssetBrowser ---
+if (ImGui::Begin(title.c_str(), p_open, flags))
+{
+    if (ImGui::BeginTabBar("ControlTabs"))
+    {
+        if (ImGui::BeginTabItem("Current"))
+        {
+            RenderCurrentItem();
+            ImGui::EndTabItem();
+        }
+
+        if (ImGui::BeginTabItem("Tree"))
+        {
+            FileEntry root{};
+            BuildFileTree(m_basePath, root);
+            RenderFileEntry(root);
+            ImGui::EndTabItem();
+        }
+        ImGui::EndTabBar();
+    }
+
+    // 外部ファイルドロップ受付
+    if (!m_doppedPath.empty())
+    {
+        auto entryPath{ m_currentPath };
+
+        auto dst{ entryPath / m_doppedPath.filename() };
+        if (std::filesystem::exists(dst))
+        {
+            auto count{ Def::IntZero };
+            auto stem{ dst.stem().string() };
+            auto ext{ dst.extension().string() };
+            do {
+                dst = entryPath / (stem + "_copy" + std::to_string(++count) + ext);
+            } while (std::filesystem::exists(dst));
+        }
+
+        // ログ出力
+        if (m_fileWatcher.Copy(m_doppedPath, dst))
+        {
+            auto dopp{ m_upFPM->GetRelative(m_doppedPath) };
+            FlEditorAdministrator::Instance().GetLogger()->AddChangeLog("Dropped External File: %s to %s", dopp.string().c_str(), dst.string().c_str());
+        }
+        else
+        {
+            auto dopp{ m_upFPM->GetRelative(m_doppedPath) };
+            FlEditorAdministrator::Instance().GetLogger()->AddErrorLog("Error: Dropped External File: %s to %s", dopp.string().c_str(), dst.string().c_str());
+        }
+
+        m_doppedPath.clear();
+    }
+
+    RenderPopup();
+}
+ImGui::End();
+</code></pre>
+
+<div class="concept-block">
+  <h4>🧭 技術的ポイント</h4>
+  <ul>
+    <li><code>std::filesystem</code> を用いて動的にディレクトリツリーを構築し、ファイル構造の変更を即時反映。</li>
+    <li>外部ファイルのドラッグ＆ドロップ(D&D)を検知し、同名衝突時には <strong>自動で "_copy[n]" 連番処理</strong>を行う安全設計。</li>
+    <li>ImGuiのポップアップメニュー（右クリック）を活用して、<strong>エクスプローラ連携・クリエイト・リネーム・コピー(GUIDもしくはパス)・ペースト・削除</strong>などをワンクリックで操作可能。</li>
+  </ul>
+</div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlFileEditor::RenderFileEntry ---
+if (ImGui::BeginPopupContextItem())
+{
+    if (ImGui::MenuItem("Open")) 
+    {
+        ShellExecuteW(nullptr, L"open", L"explorer.exe", entry.path.wstring().c_str(), nullptr, SW_SHOWNORMAL);
+
+        // ログ出力
+        FlEditorAdministrator::Instance().GetLogger()->AddLog("Open %s",
+            entry.path.string().c_str());
+    }
+                      ・
+                      ・
+                      ・
+    if (ImGui::MenuItem("Copy Guid"))
+    {
+        auto guid { FlResourceAdministrator::Instance()
+                        .GetMetaFileManager()->FindGuidByAsset(entry.path) };
+        if (!guid.has_value())
+            // ログ出力
+            FlEditorAdministrator::Instance().GetLogger()->AddErrorLog("Failed Copy Guid by %s",
+                entry.path.string().c_str());
+        else
+        {
+            ImGui::SetClipboardText(guid.value().c_str());
+
+            // ログ出力
+            FlEditorAdministrator::Instance().GetLogger()->AddLog("Copy Guid by %s",
+                entry.path.string().c_str());
+        }
+    }
+                      ・
+                      ・
+                      ・
+    if (ImGui::MenuItem("Delete"))
+        m_pendingPopup = PopupRequest{ entry.path, PopupRequest::Type::Delete };
+    ImGui::EndPopup();
+}
+</code></pre>
+
+<div class="concept-block">
+  <h4>📂 技術的ポイント</h4>
+  <ul>
+    <li><strong>右クリックメニュー</strong>はImGuiの <code>BeginPopupContextItem()</code> を利用して即時生成し、コード量を分割化。
+        <br>そして、警告文やキャンセルなどの選択肢を出し誤操作を回避します。</li>
+    <li>各ファイル・ディレクトリに対し、<strong>GUIDメタ情報を関連付け</strong>て一貫したアセット管理を実現。</li>
+    <li>メタファイル追従（リネーム・移動検知）は <code>FlResourceAdministrator</code> 経由で処理され、GUID再発行を防止。</li>
+  </ul>
+</div>
+
+
+    <div class="window-card">
+      <h3>🧩 Hierarchy</h3>
+      <p>
+        シーン内のEntityを階層表示。  
+        D&Dで親子関係を変更でき、右クリックメニューでPrefab作成・インスタンス化が可能。  
+        Sceneの保存・読込ボタンで即座にJSONファイルとして管理します。
+      </p>
+    </div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlInspectorAndHierarchyEditor::RenderHierarchy ---
+if (ImGui::Begin(title.c_str(), p_open, flags))
+{
+    if (ImGui::Button("Add Entity"))
+        scene.CreateEntity(scene.GetRootEntity());
+
+    if (ImGui::Button("Load Scene")) {
+        std::string filepath = "Assets/Scene/";
+        if (OpenFileDialog(filepath, "Load Scene",
+            "Scene Files (*.scene)\0*.scene\0All Files (*.*)\0*.*\0")) {
+            scene.LodeScene(filepath);
+        }
+    }
+
+    if (ImGui::Button("Save Scene")) {
+        std::string filepath = "Assets/Scene/";
+        if (SaveFileDialog(filepath, "Save Scene",
+            "Scene Files (*.scene)\0*.scene\0All Files (*.*)\0*.*\0", "scene")) {
+            scene.SaveScene(filepath);
+        }
+    }
+
+    if (ImGui::TreeNodeEx("Root", ImGuiTreeNodeFlags_DefaultOpen))
+    {
+        for (auto& child : scene.GetRootEntity()->children)
+            if (auto sp = child.lock()) RenderEntityRecursive(sp);
+        ImGui::TreePop();
+    }
+}
+ImGui::End();
+</code></pre>
+
+<div class="concept-block">
+  <h4>🌳 技術的ポイント</h4>
+  <ul>
+    <li>ルートEntityを起点に、<strong>再帰的に子Entityをツリー構造として描画</strong>。</li>
+    <li>右クリックメニューから、Entityの生成・Prefab作成・削除・リネームを行える。</li>
+    <li>Scene保存／読込はファイルダイアログを通じて即時反映。</li>
+  </ul>
+</div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlInspectorAndHierarchyEditor::RenderEntityRecursive ---
+bool nodeOpen = ImGui::TreeNodeEx(
+    (void*)(intptr_t)spEnt->id,
+    flags,
+    "%s", spEnt->name.c_str()
+);
+
+// クリックで選択
+if (ImGui::IsItemClicked(0) || ImGui::IsItemClicked(1))
+    m_selectedEntity = spEnt;
+
+// Drag & Drop による階層変更
+if (ImGui::BeginDragDropSource())
+{
+    ImGui::SetDragDropPayload("ENTITY_DRAG", &spEnt->id, sizeof(int));
+    ImGui::Text("Dragging Entity %d", spEnt->id);
+    ImGui::EndDragDropSource();
+}
+
+if (ImGui::BeginDragDropTarget())
+{
+    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DRAG"))
+    {
+        int draggedId = *static_cast<int*>(payload->Data);
+        auto draggedEntity = FlScene::Instance().GetEntityById(draggedId).lock();
+        if (draggedEntity && draggedEntity != spEnt)
+        {
+            // 親子関係の再構築処理
+            ...
+        }
+    }
+    ImGui::EndDragDropTarget();
+}
+</code></pre>
+
+<div class="concept-block">
+  <h4>🪄 技術的ポイント</h4>
+  <ul>
+    <li>ImGuiのDrag & Dropシステムを活用し、<strong>Entity間の親子関係をGUIで再構築可能</strong>。</li>
+    <li>名前変更はInputTextを用いたインライン編集方式で、フォーカス制御も厳密。</li>
+    <li><code>FlScene</code>と<code>CSDLLController</code>を連携させ、Prefab生成・インスタンス化などのScene管理操作を直接統合。</li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>⚙️ InspectorWindow</h3>
+      <p>
+        選択されたEntityの情報とComponentを一覧表示。  
+        追加・削除、各Componentの <code>RenderEditor()</code> によるUI描画もここで行われます。  
+        何も選択していない場合は「No entity selected.」を表示します。
+      </p>
+    </div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlInspectorAndHierarchyEditor::RenderInspector ---
+if (auto sp = m_selectedEntity.lock())
+{
+    ImGui::Text("ID: %d", sp->id);
+    ImGui::Separator();
+
+    // 名前変更
+    char nameBuffer[Def::BitMaskPos9];
+    strncpy_s(nameBuffer, sizeof(nameBuffer), sp->name.c_str(), sizeof(nameBuffer) - Def::ULongLongOne);
+    if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer))) {
+        sp->name = nameBuffer;
+    }
+
+    ImGui::SeparatorText("Components");
+
+    // --- 各コンポーネントの描画 ---
+    for (auto& comp : sp->components)
+    {
+        if (ImGui::CollapsingHeader(comp->GetType().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            ImGui::Indent();
+            comp->RenderImGui(); // Editor用の描画関数
+            if (ImGui::Button(("Remove##" + comp->GetType()).c_str()))
+                FlScene::Instance().DetachComponentLater(sp->id, comp->GetType());
+            ImGui::Unindent();
+        }
+    }
+
+    // --- コンポーネント追加 ---
+    if (!attachableTypes.empty())
+    {
+        ImGui::Text("Add Component");
+        static int selectedIndex = Def::IntZero;
+        if (selectedIndex >= attachableTypes.size()) selectedIndex = Def::IntZero;
+        if (ImGui::BeginCombo("##ComponentTypes", attachableTypes[selectedIndex]))
+        {
+            ...
+        }
+        ImGui::EndCombo();
+        if (ImGui::Button("Attach"))
+            FlScene::Instance().AttachComponent(sp->id, attachableTypes[selectedIndex]);
+    }
+}
+else
+    ImGui::Text("No entity selected.");
+</code></pre>
+
+<div class="concept-block">
+  <h4>🧠 技術的ポイント</h4>
+  <ul>
+    <li>
+      DLLControllerを通じて登録済みのコンポーネント型一覧を取得し、  
+      アタッチ可能な種類をリアルタイムで抽出する <strong>型安全な拡張コンボボックス</strong>を実装。
+    </li>
+    <li>
+      削除は即時反映ではなく<code>DetachComponentLater()</code>による <strong>安全な遅延破棄</strong>を採用。  
+      更新中の参照切れを防ぎ、安定したエディタ挙動を保証。
+    </li>
+    <li>
+      Componentの<code>RenderImGui()</code>を通じて、<strong>ランタイム組み込みエディタ</strong>として  
+      同一コードベース内で動的編集を可能に。
+    </li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>🧮 FrameRateWindow</h3>
+      <p>
+        FPS・デルタタイム表示に加え、VSyncやLimitlessモード切替、  
+        フレームレート上限を設定するスライダーを提供します。  
+        パフォーマンスモニタとしても利用可能。
+      </p>
+    </div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FrameRateWindow --- 
+if (ImGui::Begin("FramesPerSecond"))
+{
+    if (auto spFrameRateController{ m_wpFrameRateController.lock() })
+    {
+        ImGui::Text("FPS : %f", spFrameRateController->GetCurrentFPS());
+        ImGui::Text("DeltaTime : %f", spFrameRateController->GetDeltaTime());
+
+        // VSync トグル
+        if (ImGui::Checkbox("VSync", &spFrameRateController->WorkIsVsync()))
+        {
+            spFrameRateController->SetIsVsync(spFrameRateController->GetIsVsync());
+            m_upLogEditor->AddLog("VSync: %s",
+                spFrameRateController->GetIsVsync() ? "Enabled" : "Disabled");
+        }
+
+        ImGui::SameLine();
+
+        // Limitless トグル
+        if (ImGui::Checkbox("Limitless", &spFrameRateController->WorkIsLimitless()))
+        {
+            spFrameRateController->SetIsLimitless(spFrameRateController->GetIsLimitless());
+            m_upLogEditor->AddLog("Limitless: %s",
+                spFrameRateController->GetIsLimitless() ? "Enabled" : "Disabled");
+        }
+
+        // ターゲットFPS設定
+        if (!spFrameRateController->GetIsLimitless())
+        {
+            ImGui::SliderInt("TargetFrameRate", &m_targetFrameRate, 30, 300);
+            spFrameRateController->SetDesiredFPS(static_cast&lt;float&gt;(m_targetFrameRate));
+        }
+    }
+}
+ImGui::End();
+</code></pre>
+
+<div class="concept-block">
+  <h4>⏱ 技術的ポイント</h4>
+  <ul>
+    <li>
+      Limitlessモード切替により、<strong>ターゲットFPS制御を動的に解除・再設定</strong>可能。  
+      シミュレーション／エディタ動作モードをシームレスに切替。
+    </li>
+    <li>
+      スライダー値は <code>SetDesiredFPS()</code> を介して  
+      エンジン全体の <strong>タイムステップ挙動</strong> に直接反映。  
+      開発中でもリアルタイムに最適フレーム制御をテスト可能。
+    </li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>🎨 ThemeWindow</h3>
+      <p>
+        エディタ全体のテーマを変更。  
+        トランジションはイージングを用いて自然に切り替わります。  
+        ライト／ダークなどのテーマを即時反映。
+      </p>
+    </div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlEditorCascadingStyleSheets::TransitionToTheme --- 
+void FlEditorCascadingStyleSheets::TransitionToTheme(const std::string& name, double durationSec, FlAnimator::EaseFunc ease)
+{
+    if (m_themes.find(name) == m_themes.end()) return;
+    m_targetTheme = name;
+    m_animator = FlAnimator(durationSec, ease);
+    m_animator.start();
+
+    // 遷移開始時の状態をキャプチャ
+    m_startStyle = ImGui::GetStyle();
+}
+</code></pre>
+
+    <div class="concept-block">
+  <h4>🎨 技術的ポイント</h4>
+  <ul>
+    <li>
+      <strong>FlEditorCascadingStyleSheets</strong> クラスを中心に、<br>
+      ImGuiの <code>ImGuiStyle</code> 構造体を直接制御することで  
+      <strong>UIテーマ全体の統一的なスタイル管理</strong> を実現。
+    </li>
+    <li>
+      テーマ定義は <code>m_themes</code> に保持され、  
+      カラー (<code>ImVec4</code>)・パディング・ラウンディングなど  
+      すべてのスタイル要素を構造体として記録。
+    </li>
+    <li>
+      <code>ApplyTheme()</code> により即時切替、  
+      <code>TransitionToTheme()</code> により  
+      <strong>イージング関数付きのアニメーション遷移</strong>をサポート。  
+      （内部では <code>FlAnimator</code> による補間が進行）
+    </li>
+    <li>
+      <code>Update()</code> 関数では、各スタイル項目を  
+      <code>lerp()</code> で補間し、自然なフェード演出を実現。  
+      特に色（RGBA）の補間はImGuiカラー配列全体に反映。
+    </li>
+    <li>
+      トランジション終了時に <code>m_currentTheme</code> を更新し、  
+      不整合を防止する堅牢な状態遷移設計。  
+      遷移中は <strong>ImGui::GetStyle()</strong> が動的に変化。
+    </li>
+    <li>
+      この仕組みにより、ライト／ダークテーマ切替だけでなく  
+      <strong>カスタムCSS的スタイル階層構造</strong>を実装可能。  
+      UIデザインの一貫性と柔軟性を両立している。
+    </li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>🐍 PlugInWindow</h3>
+      <p>
+        特定フォルダ内のPythonスクリプトを自動検出。  
+        各スクリプトに対応したボタンが生成され、クリックで実行可能。  
+        出力は <strong>TerminalWindow</strong> に転送されます。
+      </p>
+    </div>
+
+<pre><code class="language-cpp">
+// --- 抜粋: FlPythonMacroEditor::ExecuteScript ---
+std::string command = "python.exe \"" + std::filesystem::absolute(scriptPath).string() + "\"";
+std::wstring wcommand = ansi_to_wide(command);
+
+m_terminal.AddLog("> Executing: " + command);
+
+if (!CreateProcess(nullptr, wcommand.data(), nullptr, nullptr, TRUE,
+                   CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
+{
+    m_terminal.AddLog("> Error: Failed to start python.exe.");
+    return;
+}
+
+CloseHandle(hWrite);
+char buffer[4096];
+DWORD read = 0;
+while (ReadFile(hRead, buffer, sizeof(buffer) - 1, &read, nullptr) && read > 0)
+{
+    buffer[read] = '\0';
+    m_terminal.AddLog(buffer); // 出力をリアルタイム転送
+}
+
+WaitForSingleObject(pi.hProcess, INFINITE);
+CloseHandle(pi.hProcess);
+CloseHandle(pi.hThread);
+CloseHandle(hRead);
+m_terminal.AddLog("> Script finished: " + scriptPath.filename().string());
+</code></pre>
+
+<div class="concept-block">
+  <h4>🐍 技術的ポイント</h4>
+  <ul>
+    <li>
+      <strong>FlPythonMacroEditor</strong> は PH-ECS の <strong>外部スクリプト統合層</strong>として設計。  
+      ランタイム中にPythonスクリプトを検出・実行し、出力を即時にTerminalWindowへ転送します。
+    </li>
+
+    <li>
+      <code>std::filesystem</code> を利用して <strong>マクロフォルダを動的スキャン</strong>し、  
+      拡張子 <code>.py</code> のみをUIボタンとして自動生成。  
+      スクリプトを追加・削除しても <strong>再起動不要で即反映</strong>。
+    </li>
+
+    <li>
+      実行プロセスは <code>CreateProcess()</code> により生成され、  
+      標準出力／標準エラーを <code>CreatePipe()</code> でリダイレクト。  
+      <strong>非同期でPython出力を読み取り、リアルタイムにTerminalへ流す</strong>仕組み。
+    </li>
+
+    <li>
+      プロセス監視は <code>WaitForSingleObject()</code> で行い、  
+      スクリプト完了時に「Script finished」ログを発行。  
+      エラー時には <code>CreatePipe</code> / <code>CreateProcess</code> の失敗を  
+      <strong>詳細メッセージ付きでロギング</strong>。
+    </li>
+
+    <li>
+      実行コマンドは <code>python.exe "path"</code> として構築。  
+      PATH上にPythonが存在しない場合でも <strong>自己診断メッセージ</strong>を表示。
+    </li>
+
+    <li>
+      <code>FlTerminalEditor</code> と完全統合されており、  
+      スクリプトの出力をカラーログで可視化。  
+      デバッグ・自動化・AIスクリプトの実行結果を即座に確認できます。
+    </li>
+
+    <li>
+      開発者はこの機構を通じて、  
+      <strong>アセット生成・マテリアル一括変換・外部AI連携</strong>など、  
+      エディタ機能をコードレスに拡張可能です。
+    </li>
+  </ul>
+</div>
+
+    <div class="window-card">
+      <h3>💻 TerminalWindow</h3>
+      <p>
+        簡易コマンドライン。<code>cd</code>, <code>dir</code> などの基本操作のほか、  
+        <strong>Git / Python / CMake</strong> 等の外部コマンドも利用可能。  
+        エディタ内からプロジェクト管理やビルド操作を完結。
+      </p>
+    </div>
+
+    <div class="window-card">
+      <h3>🧱 DeveloperCommandPrompt</h3>
+      <p>
+        <strong>Visual Studio Developer Command Prompt</strong> をエディタ内で利用可能。  
+        <code>msbuild</code>コマンドで任意プロジェクトのBuild / Cleanを実行できます。  
+        バッチファイル経由で自動設定を行うため環境変数も維持されます。
+      </p>
+    </div>
+
+    <div class="window-card">
+      <h3>🪶 LogWindow</h3>
+      <p>
+        ファイル操作やDLLホットリロード、Component追加などの履歴を色付きで表示。  
+        Clear / Copy / Export 機能を備え、  
+        ログを <code>.log</code> ファイルとして保存できます。
+      </p>
+    </div>
+  </div>
+</section>
+
+<section id="navigation" class="section">
+  <h2>Next Pages</h2>
+  <p>さらにPH-ECSの詳細な技術資料・設計思想を以下で解説しています。</p>
+
+  <ul class="toc">
+    <li><a href="architecture.html">◀ Architecture – 内部構造とデータフロー</a></li>
+    <li><a href="showcase.html">▶ Showcase – 実際のエディタ画面とコード例</a></li>
+    <li><a href="philosophy.html">▶ Philosophy – Pragmatic設計思想の核心</a></li>
+    <li><a href="index.html">◀ Back to Top – トップページへ戻る</a></li>
+  </ul>
+</section>
+
+<footer class="footer">
+  <p>© 2025 Falcon Engine Project – Pragmatic Hybrid ECS</p>
+</footer>
+
+</body>
+</html>
