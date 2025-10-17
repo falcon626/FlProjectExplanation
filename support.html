@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+
+  <title>Support | Pragmatic Hybrid Entity Component System</title>
+  <meta name="description" content="PH-ECSエディタを支える便利機能・開発支援システムを紹介。ファイル監視、ログ、メタファイル管理など、開発効率を支える裏方の仕組みを解説。">
+  <link rel="stylesheet" href="CSS/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <h1>Support System</h1>
+  <p class="subtitle">開発支援・ユーティリティ構造</p>
+</header>
+
+<section id="filewatcher" class="section highlight">
+  <h2>FlFileWatcher – ファイル監視と資産同期</h2>
+  <p>
+    <strong>FlFileWatcher</strong> は、エディタ環境におけるファイル変化の検出・自動更新・同期の中核です。  
+    <code>std::filesystem</code> と <code>std::thread</code> を活用し、非同期にディレクトリ全体を監視します。  
+    更新が検出されると、即座にコールバックを通じて関連システム（例：メタファイル更新・アセット再ロード）へ反映します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlFileWatcher::Start ---
+void FlFileWatcher::Start(Callback callback)
+{
+    m_running = true;
+    m_thread = std::thread([this, callback]() {
+        while (m_running) {
+            std::this_thread::sleep_for(m_interval);
+
+            // ファイル更新・新規作成検出
+            for (auto& file : std::filesystem::recursive_directory_iterator(m_pathToWatch)) {
+                const auto pathStr = file.path().string();
+                const auto lastWriteTime = std::filesystem::last_write_time(file);
+
+                if (!Contains(pathStr)) {
+                    m_paths[pathStr] = lastWriteTime;
+                    callback(file.path(), FileStatus::Created);
+                }
+                else if (m_paths[pathStr] != lastWriteTime) {
+                    m_paths[pathStr] = lastWriteTime;
+                    callback(file.path(), FileStatus::Modified);
+                }
+            }
+
+            // 削除検出
+            for (auto it = m_paths.begin(); it != m_paths.end();) {
+                if (!std::filesystem::exists(it->first)) {
+                    callback(it->first, FileStatus::Erased);
+                    it = m_paths.erase(it);
+                } else ++it;
+            }
+        }
+    });
+}
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><code>Created / Modified / Erased</code> の3状態をリアルタイム検出</li>
+    <li>非同期監視によるUIブロッキングの回避</li>
+    <li>フォルダ階層全体を再帰的に走査</li>
+    <li>ファイル/ディレクトリ操作（追加・削除・移動・リネーム・コピー）を内包</li>
+  </ul>
+</section>
+
+<section id="automatic-file-add" class="section">
+  <h2>FlAutomaticFileAddSystem – 自動コード生成とXMLパーサ連携</h2>
+  <p>
+    <strong>FlAutomaticFileAddSystem</strong> は、  
+    新しいコンポーネントとシステムを自動生成し、<code>.vcxproj</code> および <code>.filters</code> に即時登録するためのシステムです。  
+    内部的には <strong><a href="https://github.com/leethomason/tinyxml2">tinyxml2</a></strong> によるXMLパーサを利用してVisual Studioプロジェクト構成を解析・更新します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlAutomaticFileAddSystem::CreateAndAdd ---
+bool FlAutomaticFileAddSystem::CreateAndAdd(const std::string& className, const std::string& filterName)
+{
+    auto outputDir{ m_projectDir / filterName };
+    std::filesystem::create_directories(outputDir);
+
+    auto headerPath{ outputDir / (className + ".h") };
+    auto cppPath{ outputDir / (className + ".cpp") };
+
+    if (!GenerateHeader(className, headerPath)) return false;
+    if (!GenerateCpp(className, cppPath)) return false;
+
+    if (!AddToVcxproj(headerPath, "ClInclude")) return false;
+    if (!AddToVcxproj(cppPath, "ClCompile")) return false;
+
+    if (!AddToFilters(headerPath, "ClInclude", filterName)) return false;
+    if (!AddToFilters(cppPath, "ClCompile", filterName)) return false;
+
+    return true;
+}
+  </code></pre>
+
+  <p>
+    上記の関数は、C++ソース・ヘッダの自動生成と同時に、  
+    プロジェクトファイルへXML要素を追加します。  
+    フィルタ階層の作成や一意識別子の付与も自動化されており、  
+    Visual Studio上でのソース構成を即座に反映します。
+  </p>
+
+  <h3>XML操作の一例</h3>
+  <pre><code class="language-cpp">
+// --- 抜粋: AddToFilters ---
+bool FlAutomaticFileAddSystem::AddToFilters(
+    const std::filesystem::path& filePath,
+    const std::string& itemType,
+    const std::string& filterName)
+{
+    tinyxml2::XMLDocument doc;
+    if (doc.LoadFile(m_filtersPath.string().c_str()) != XML_SUCCESS)
+        return false;
+
+    XMLElement* root = doc.RootElement();
+    if (!root) return false;
+
+    std::string filterPath = filterName;
+    std::replace(filterPath.begin(), filterPath.end(), '/', '\\');
+
+    // Filter階層を作成
+    XMLElement* filterElem = doc.NewElement("Filter");
+    filterElem->SetAttribute("Include", filterPath.c_str());
+
+    XMLElement* uniqueId = doc.NewElement("UniqueIdentifier");
+    uniqueId->SetText("{00000000-0000-0000-0000-000000000000}");
+    filterElem->InsertEndChild(uniqueId);
+    ...
+}
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li>テンプレートベースでのC++コード自動生成</li>
+    <li><strong>tinyxml2</strong> によるXML DOM構造操作</li>
+    <li>Visual Studioプロジェクトとの完全同期</li>
+    <li>フィルタ階層の自動作成とGUID付与</li>
+    <li><code>FlScriptEditor</code> からのGUI操作に連動して動作</li>
+  </ul>
+
+  <h3>自動生成されるコード例</h3>
+  <pre><code class="language-cpp">
+// --- 自動生成されるヘッダテンプレート ---
+class ExampleComponent : public BaseBasicComponent 
+{
+public:
+    std::string GetType() const override { return "ExampleComponent"; }
+    void Serialize(nlohmann::json& json) const override;
+    void Deserialize(nlohmann::json& json) override;
+    void RenderImGui() override;
+};
+
+class ExampleSystem : public BaseBasicSystem 
+{
+public:
+    void Update(BaseBasicComponent* component, const uint32_t id, float deltaTime) override;
+    std::string GetType() const override { return "ExampleSystem"; }
+    std::string GetSupportedComponentType() const override { return "ExampleComponent"; }
+};
+  </code></pre>
+</section>
+
+<section id="solutionparser" class="section highlight">
+  <h2>FlSolutionParser – Visual Studioソリューション構造解析</h2>
+  <p>
+    <strong>FlSolutionParser</strong> は、Visual Studio の <code>.sln</code> ファイルを解析し、  
+    含まれる <code>.vcxproj</code> プロジェクトの構造情報を抽出するためのユーティリティです。  
+    エディタ内部では、プロジェクトのBuildに活用されています。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlSolutionParser::Load ---
+bool FlSolutionParser::Load(const std::filesystem::path&amp; slnPath)
+{
+    m_projects.clear();
+    m_solutionPath = slnPath;
+
+    std::ifstream file(slnPath);
+    if (!file.is_open()) return false;
+
+    std::string line;
+    while (std::getline(file, line)) {
+        if (line.rfind("Project(", 0) == 0)) {
+            // ダブルクォート位置を取得
+            std::vector&lt;size_t&gt; quotes;
+            for (size_t pos = 0; pos &lt; line.size(); ++pos)
+                if (line[pos] == '"') quotes.push_back(pos);
+
+            if (quotes.size() &gt;= 6) {
+                // プロジェクト名・パス抽出
+                std::string name    = line.substr(quotes[2] + 1, quotes[3] - quotes[2] - 1);
+                std::string relPath = line.substr(quotes[4] + 1, quotes[5] - quotes[4] - 1);
+                std::replace(relPath.begin(), relPath.end(), '\\', '/');
+
+                std::filesystem::path projectPath = m_solutionPath.parent_path() / relPath;
+                std::string ext = projectPath.extension().string();
+                std::transform(ext.begin(), ext.end(), ext.begin(), ::tolower);
+
+                if (ext == ".vcxproj") {
+                    FlProjectInfo info;
+                    info.name         = name;
+                    info.relativePath = relPath;
+                    info.fullPath     = std::filesystem::absolute(projectPath).lexically_normal();
+                    m_projects.push_back(info);
+                }
+            }
+        }
+    }
+    return !m_projects.empty();
+}
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li>Visual Studio ソリューション（<code>.sln</code>）ファイルの構造を正確に解析</li>
+    <li><code>.vcxproj</code> パス・プロジェクト名を動的に取得</li>
+    <li>文字列解析には安全なクォート位置検出を採用</li>
+    <li><code>FindProjectByName()</code> による検索機能を提供</li>
+    <li>パスの正規化と相対変換を自動で実施</li>
+  </ul>
+
+  <h3>利用例</h3>
+  <pre><code class="language-cpp">
+FlSolutionParser parser;
+if (parser.Load("FalconEngine.sln")) {
+    const auto* project = parser.FindProjectByName("FlComponentSystem");
+    if (project)
+        std::cout &lt;&lt; "Found project: " &lt;&lt; project-&gt;name 
+                  &lt;&lt; " at " &lt;&lt; project-&gt;fullPath &lt;&lt; std::endl;
+}
+  </code></pre>
+
+  <p>
+    このクラスは、msBuildコマンドでBuildもしくはCleanする用にソリューションに含まれるプロジェクトの名前とパスを検出します。
+  </p>
+</section>
+
+<section id="chronus" class="section">
+  <h2>FlChronus – 時間制御と計測ユーティリティ</h2>
+  <p>
+    <strong>FlChronus</strong> は、時間管理・計測・制御の基盤を担うユーティリティクラスです。  
+    ストップウォッチ、ラップタイマー、ティッカー、FPS計測、スコープ計測など、  
+    開発・計測・最適化のあらゆる場面で活用できる高精度ツール群を内包しています。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlChronus 基本構造 ---
+class FlChronus 
+{
+public:
+    using Steady = std::chrono::steady_clock;   // 経過時間用（単調時計）
+    using System = std::chrono::system_clock;   // 現実時間用（壁時計）
+
+    FlChronus(bool startNow = true) { if (startNow) start(); }
+
+    void start() noexcept { if (!_running) { _running = true; _t0 = Steady::now(); } }
+    void stop() noexcept  { if (_running) { _acc += Steady::now() - _t0; _running = false; } }
+    void reset() noexcept { _acc = Dur::zero(); _running = false; _t0 = Steady::now(); }
+
+    template<class D = ms>
+    D elapsed() const noexcept {
+        Dur d{ _acc };
+        if (_running) d += (Steady::now() - _t0);
+        return std::chrono::duration_cast<D>(d);
+    }
+};
+  </code></pre>
+
+  <h3>主な構成機能</h3>
+  <ul>
+    <li><strong>Stopwatch</strong> – スタート・ストップ・リセット・ラップ計測</li>
+    <li><strong>Countdown</strong> – 残り時間や期限までのカウントダウン管理</li>
+    <li><strong>Ticker</strong> – 一定間隔でイベントを発生させるティッカー（定期処理）</li>
+    <li><strong>FpsAverager</strong> – フレームレートの移動平均を算出</li>
+    <li><strong>Scoped</strong> – スコープ終了時に自動で時間を計測・ログ出力</li>
+  </ul>
+
+  <h3>便利ユースケース例</h3>
+  <pre><code class="language-cpp">
+// --- 例1: FPSの計測 ---
+FlChronus::FpsAverager fpsAvg;
+auto [current, average] = fpsAvg.on_frame();
+std::cout &lt;&lt; "FPS: " &lt;&lt; current &lt;&lt; " (" &lt;&lt; average &lt;&lt; " avg)\n";
+
+// --- 例2: スコープ計測 ---
+{
+    FlChronus::Scoped measure([](auto dur){
+        std::cout &lt;&lt; "処理時間: " &lt;&lt; FlChronus::to_seconds(dur) &lt;&lt; "秒\n";
+    });
+    RunHeavyProcess(); // 処理時間を自動計測
+}
+  </code></pre>
+
+  <h3>特徴</h3>
+  <ul>
+    <li><code>std::chrono</code>ベースの高精度な時間制御</li>
+    <li>ISO8601形式の現在時刻文字列生成</li>
+    <li>カウントダウン・ティッカーなど周期的処理の簡易化</li>
+  </ul>
+</section>
+
+<section id="easing" class="section highlight">
+  <h2>FlEasing – アニメーション補間関数ライブラリ</h2>
+  <p>
+    <strong>FlEasing</strong> は、アニメーションやトランジション効果に滑らかな動きを付与するための  
+    イージング関数群をまとめたユーティリティクラスです。  
+    物理的な動きや自然な加速・減速をシンプルに表現でき、  
+    UIエフェクト・ゲーム演出・補間計算など幅広く利用できます。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlEasing 基本構造 ---
+class FlEasing 
+{
+public:
+    static double Linear(double t) noexcept { return t; }
+
+    // 二次曲線（Quad）
+    static double EaseInQuad(double t) noexcept { return t * t; }
+    static double EaseOutQuad(double t) noexcept { return t * (2 - t); }
+
+    // 三次曲線（Cubic）
+    static double EaseInCubic(double t) noexcept { return t * t * t; }
+    static double EaseOutCubic(double t) noexcept { return 1 + (--t) * t * t; }
+
+    // 正弦補間（Sine）
+    static double EaseInSine(double t) noexcept {
+        return 1 - std::cos((t * M_PI) / 2.0);
+    }
+};
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><strong>Linear / Quad / Cubic / Quart / Quint</strong> など基本補間を網羅</li>
+    <li>物理的効果を再現する <strong>Sine / Expo / Circ / Back / Elastic / Bounce</strong> 系を収録</li>
+    <li>EaseIn / EaseOut / EaseInOut の3種を全補間タイプで提供</li>
+    <li>すべて <code>static</code> メソッドとして定義され即座に利用可能</li>
+    <li><code>noexcept</code> 指定でオーバーヘッドを最小化</li>
+  </ul>
+
+  <h3>使用例</h3>
+  <pre><code class="language-cpp">
+// --- 例: 時間t[0,1]に応じて値を補間 ---
+double t = 0.5;
+double value = FlEasing::EaseInOutCubic(t);
+pos.x = Math::Lerp(start.x, end.x, value);
+pos.y = Math::Lerp(start.y, end.y, value);
+  </code></pre>
+
+  <p>
+    このように、<strong>FlEasing</strong> はゲーム・UIエフェクト・スライダー挙動など  
+    あらゆる「時間変化」に直感的な表現力を与えます。  
+    <strong>FlChronus</strong> と組み合わせることで、  
+    時間制御と補間を高精度かつ簡潔に扱うことができます。
+  </p>
+</section>
+
+<section id="animator" class="section">
+  <h2>FlAnimator – 時間制御 × 補間の統合クラス</h2>
+  <p>
+    <strong>FlAnimator</strong> は、<a href="#chronus">FlChronus</a> と <a href="#easing">FlEasing</a> を統合した  
+    「時間ベース補間クラス」です。<br>
+    アニメーションの経過時間を自動的に管理し、イージング関数を適用した進行度を算出します。  
+    ゲーム内UI・トランジション・フェードなど、あらゆる時間変化処理を簡潔に実装できます。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlAnimator ---
+class FlAnimator
+{
+public:
+    using EaseFunc = std::function&lt;double(double)&gt;;
+
+    FlAnimator(double durationSec, EaseFunc ease = FlEasing::Linear)
+        : m_duration(durationSec), m_ease(ease) {}
+
+    void start()  { m_timer.start();  m_running = true; }
+    void reset()  { m_timer.reset();  m_running = false; }
+
+    bool isRunning() const { return m_running && progress() &lt; 1.0; }
+
+    // イージング適用済みの進行度 (0.0〜1.0)
+    double value() const { return m_ease(progress()); }
+
+    // 生の進行度（イージング未適用）
+    double progress() const {
+        if (!m_running) return 0.0;
+        double t = std::chrono::duration_cast&lt;std::chrono::duration&lt;double&gt;&gt;(
+            m_timer.elapsed()).count() / m_duration;
+        return std::clamp(t, 0.0, 1.0);
+    }
+
+private:
+    FlChronus m_timer;
+    double m_duration;
+    EaseFunc m_ease;
+    bool m_running = false;
+};
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><strong>FlChronus</strong> による高精度タイマー制御</li>
+    <li><strong>FlEasing</strong> 関数を動的に切替可能（ラムダ式も可）</li>
+    <li><code>value()</code> は自動でイージング補正済み値を返す</li>
+    <li>アニメーションの進行状態を <code>isRunning()</code> で即判定</li>
+    <li>任意の時間・関数・型に対応する汎用デザイン</li>
+  </ul>
+
+  <h3>使用例</h3>
+  <pre><code class="language-cpp">
+// --- UIフェードアニメーション例 ---
+FlAnimator fade(2.0, FlEasing::EaseInOutQuad);
+fade.start();
+
+while (fade.isRunning()) {
+    double alpha = fade.value(); // 0.0〜1.0 の補間値
+    DrawUI(alpha);
+}
+  </code></pre>
+
+  <p>
+    <strong>FlAnimator</strong> により、時間計測と補間を一体化した柔軟なアニメーション管理が可能です。  
+    コード上での時間制御が明快になり、UI/演出処理を「データ駆動的」に記述できます。
+  </p>
+</section>
+
+<section id="metafilemanager" class="section highlight">
+  <h2>FlMetaFileManager – アセットメタ情報自動生成・追従システム</h2>
+  <p>
+    <strong>FlMetaFileManager</strong> は、ゲームエンジン内で使用される全アセット（モデル・テクスチャ・サウンドなど）に対して、  
+    一意の <code>GUID</code> と管理情報を付与するメタファイル (<code>.flmeta</code>) を自動生成・更新・追従するクラスです。  
+    Unity の <code>.meta</code> 管理に類似しており、ファイルのリネーム・移動・削除にも自動対応します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlMetaFileManager.h ---
+class FlMetaFileManager
+{
+public:
+    void StartMonitoring(const std::string&amp; rootPath, int intervalSeconds = 1);
+    void StopMonitoring();
+
+    void CreateMetaFileIfNotExist(const std::string&amp; assetPath);
+    void OnAssetRenamedOrMoved(const std::filesystem::path&amp; oldPath, const std::filesystem::path&amp; newPath);
+    void IncrementLoadFlag(const std::string&amp; assetPath);
+
+    const std::optional&lt;std::string&gt; FindAssetByGuid(const std::string&amp; guid) const;
+    const std::optional&lt;std::string&gt; FindGuidByAsset(const std::filesystem::path&amp; path) const;
+
+private:
+    void CreateOrUpdateFlMetaFile(const std::filesystem::path&amp; assetPath);
+    bool IsInsideFlMeta(const std::filesystem::path&amp; path) const;
+    void OnFileEvent(const std::filesystem::path&amp; path, FlFileWatcher::FileStatus status);
+
+    FlFileWatcher m_fileWatcher;
+    std::unordered_map&lt;std::string, std::string&gt; m_guidMap;
+};
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><strong>.flmeta</strong> ファイルの自動生成・更新・削除を監視ベースで実施</li>
+    <li>ファイル名変更やディレクトリ移動時にもメタ情報を追従</li>
+    <li><strong>GUID</strong> によるアセット一意識別と逆引き検索</li>
+    <li>親フォルダの更新や削除にも自動反映（再帰的管理）</li>
+    <li>アセット更新日時を <code>lastModified</code> / <code>lastUpdated</code> として記録</li>
+  </ul>
+
+  <h3>動作概要</h3>
+  <pre><code class="language-cpp">
+void FlMetaFileManager::StartMonitoring(const std::string&amp; rootPath, int intervalSeconds)
+{
+    m_rootPath = rootPath;
+    std::filesystem::create_directories(m_rootPath);
+
+    // 初回スキャンで既存アセットにメタ付与
+    for (const auto&amp; entry : std::filesystem::recursive_directory_iterator(m_rootPath))
+        if (!IsInsideFlMeta(entry.path()))
+            CreateOrUpdateFlMetaFile(entry.path());
+
+    // ファイル監視開始
+    m_fileWatcher.SetPathAndInterval(rootPath, std::chrono::seconds(intervalSeconds));
+    m_fileWatcher.Start([this](const auto&amp; path, auto status) {
+        OnFileEvent(path, status);
+    });
+}
+  </code></pre>
+
+  <h3>内部処理</h3>
+  <ul>
+    <li>ファイル生成時 → 新規 <code>.flmeta</code> 生成</li>
+    <li>ファイル変更時 → 更新日時を比較し再シリアライズ</li>
+    <li>ファイル削除時 → 対応するメタを削除、GUIDマップから除外</li>
+    <li>フォルダ移動時 → <code>OnAssetRenamedOrMoved()</code> が自動追従処理を実施</li>
+  </ul>
+
+  <h3>メタファイル例</h3>
+  <pre><code class="language-json">
+{
+  "Guid": "B8345E9A-9A6E-42A3-A7E9-41F3AD9FEC15",
+  "assetPath": "Assets/Textures/skybox.png",
+  "isDirectory": false,
+  "lastModified": "2025-10-06T08:13:12Z",
+  "loadFlag": false
+}
+  </code></pre>
+
+  <h3>利用例</h3>
+  <pre><code class="language-cpp">
+FlMetaFileManager meta;
+meta.StartMonitoring("Assets");
+
+// メタファイル自動生成・追従開始
+if (auto guid = meta.FindGuidByAsset("Assets/Textures/skybox.png"))
+    std::cout &lt;&lt; "GUID: " &lt;&lt; *guid &lt;&lt; std::endl;
+
+// 移動時の追従処理
+meta.OnAssetRenamedOrMoved("Assets/Textures/skybox.png", "Assets/Environment/skybox.png");
+  </code></pre>
+
+  <h3>技術的ポイント</h3>
+  <ul>
+    <li><code>FlFileWatcher</code> により、ファイルイベント（作成・変更・削除）を非同期監視</li>
+    <li>GUID 発行は <code>FlGuid</code> により生成・保持（再発行防止）</li>
+    <li><code>FlJsonUtility</code> 経由でメタ情報をシリアライズ / デシリアライズ</li>
+    <li><code>FlEditorAdministrator</code> と連携し、操作ログを自動追加</li>
+    <li>メタファイルは<code>.FlMeta</code>という隠しディレクトリ内に入れ他のAssetファイルとの混合を避る</li>
+  </ul>
+
+  <p>
+    このクラスは、アセットの永続的な一意識別を保証し、  
+    再インポートやエディタ再起動時にも GUID が保持されるよう設計されています。  
+    ファイル管理の自動化基盤として <strong>FlFileEditor</strong> と密接に連携します。
+  </p>
+</section>
+
+<section id="resourceadmin" class="section">
+  <h2>FlResourceAdministrator – アセット統合管理システム</h2>
+  <p>
+    <strong>FlResourceAdministrator</strong> は、ゲーム内で使用するすべてのアセットを一元的に管理する中核クラスです。  
+    <code>Shader</code>・<code>Texture</code>・<code>Model</code>・<code>Audio</code>・<code>Binary</code> といった各種ローダーを統合し、  
+    GUIDベースでキャッシュされたリソースを即座に取得できるよう設計されています。  
+    <br><br>
+    各アセットローダーは <strong><a href="https://refactoring.guru/ja/design-patterns/flyweight">Flyweight</a> パターン</strong> によって設計されており、  
+    同一リソースの多重ロードを防ぎ、効率的なメモリ利用を実現します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlResourceAdministrator.h ---
+class FlResourceAdministrator
+{
+public:
+    void Load(const std::initializer_list&lt;std::string&gt;&amp; assetsPaths) noexcept;
+
+    template&lt;typename T&gt;
+    const std::shared_ptr&lt;T&gt;&amp; Get(const std::string&amp; path);
+
+    template&lt;typename T&gt;
+    const std::shared_ptr&lt;T&gt;&amp; GetByGuid(const std::string&amp; guid);
+
+    void AllAssetsCacheClear() noexcept;
+
+    const auto&amp; GetMetaFileManager() const noexcept { return m_meta; }
+
+    static auto&amp; Instance() noexcept
+    {
+        static auto instance{ FlResourceAdministrator{} };
+        return instance;
+    }
+
+private:
+    FlResourceAdministrator();
+    ~FlResourceAdministrator();
+
+    std::unique_ptr&lt;ShaderManager&gt;    m_shader;
+    std::unique_ptr&lt;FlTextureManager&gt; m_texture;
+    std::unique_ptr&lt;ModelManager&gt;     m_model;
+    std::unique_ptr&lt;FlAudioManager&gt;   m_audio;
+    std::unique_ptr&lt;FlBinaryManager&gt;  m_binary;
+    std::unique_ptr&lt;FlMetaFileManager&gt; m_meta;
+};
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><strong>アセットを統合管理：</strong> すべてのリソースローダーを単一クラスからアクセス</li>
+    <li><strong>GUIDベースの識別：</strong> Meta情報と連携し、アセットの一意性を保証</li>
+    <li><strong>キャッシュクリア対応：</strong> 全リソースのリロードを即座に実行可能</li>
+    <li><strong><a href="https://refactoring.guru/ja/design-patterns/singleton">シングルトン</a>設計：</strong> エンジン全体で統一されたリソース管理を提供</li>
+  </ul>
+
+  <h3>動作概要</h3>
+  <pre><code class="language-cpp">
+// --- Shader 取得例 ---
+auto shader = FlResourceAdministrator::Instance().Get&lt;ComPtr&lt;ID3DBlob&gt;&gt;("Shaders/StandardVS.hlsl");
+
+// --- Texture 取得例 ---
+auto texture = FlResourceAdministrator::Instance().Get&lt;Texture&gt;("Textures/UI/button.png");
+
+// --- GUID から直接取得 ---
+auto model = FlResourceAdministrator::Instance().GetByGuid&lt;ModelData&gt;("A1B2C3D4-5678-9012-3456-ABCDEF123456");
+  </code></pre>
+
+  <h3>Flyweight パターンの構造</h3>
+  <p>
+    各ローダーは共通の基底クラス <code>BaseBasicResourceManager&lt;T&gt;</code> を継承しており、  
+    アセットのロード済みキャッシュを共有します。これにより、同一アセットを複数オブジェクトで参照しても  
+    メモリ上には一つだけのインスタンスが存在します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: BaseBasicResourceManager.h ---
+template&lt;typename T&gt;
+class BaseBasicResourceManager
+{
+public:
+    virtual ~BaseBasicResourceManager() = default;
+    virtual const bool Load(const std::string&amp; path) = 0;
+
+    const std::shared_ptr&lt;T&gt;&amp; Get(const std::string&amp; path, const std::string&amp; guid) noexcept
+    {
+        // 既にロード済みなら再利用
+        if (auto it = m_resources.find(guid); it != m_resources.end())
+            return it-&gt;second;
+
+        // 未ロードならロード処理を実行
+        if (!Load(path)) return nullptr;
+        return m_resources[guid];
+    }
+
+    void Clear() { m_resources.clear(); }
+
+protected:
+    std::unordered_map&lt;std::string, std::shared_ptr&lt;T&gt;&gt; m_resources;
+};
+  </code></pre>
+
+  <h3>技術的ポイント</h3>
+  <ul>
+    <li><strong>テンプレート対応：</strong> 取得時の型指定で自動的に適切なローダーを選択</li>
+    <li><strong>スマートポインタ管理：</strong> 共有ポインタでメモリの安全性と寿命管理を統一</li>
+  </ul>
+  <br>
+  <p>
+    <strong>FlResourceAdministrator</strong> は、アセットパイプラインの中心的な役割を担います。  
+    ファイル監視・キャッシュ・識別を自動化し、  
+    各アセットマネージャーとの連携によって “一度ロードしたものをどこでも即座に再利用” できる環境を構築しています。
+  </p>
+</section>
+
+<section id="assetprotector" class="section highlight">
+  <h2>FlAssetProtector – アセット暗号化システム</h2>
+  <p>
+    <strong>FlAssetProtector</strong> は、ゲーム開発中および配布時の
+    <strong>アセットの二次配布防止</strong>・<strong>データ秘匿化</strong> を目的とした
+    軽量暗号化システムです。  
+    スタティックライブラリとしてビルドされ、ゲーム本体とは独立して動作するため、
+    不正な復号・解析を難しくします。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 抜粋: FlCrypter.h ---
+namespace FlAssetProtector
+{
+    class CryptoManager
+    {
+    public:
+        static bool EncryptXOR(const std::vector&lt;uint8_t&gt;&amp; plaintext,
+                               std::vector&lt;uint8_t&gt;&amp; ciphertext);
+
+        static bool DecryptXOR(const std::vector&lt;uint8_t&gt;&amp; ciphertext,
+                               std::vector&lt;uint8_t&gt;&amp; plaintext);
+
+        static std::string EncryptFilename(const std::string&amp; original);
+        static std::string DecryptFilename(const std::string&amp; encryptedName);
+    };
+
+    bool EncryptAssetFile(const std::filesystem::path&amp; inputPath,
+                          const std::filesystem::path&amp; outputDir);
+
+    bool DecryptAssetFile(const std::filesystem::path&amp; encryptedPath,
+                          std::vector&lt;uint8_t&gt;&amp; outData);
+
+    bool EncryptAllInDirectory(const std::filesystem::path&amp; inputDir,
+                               const std::filesystem::path&amp; outputDir);
+
+    bool DecryptAllToOriginal(const std::filesystem::path&amp; encryptedDir,
+                              const std::filesystem::path&amp; outputDir);
+}
+  </code></pre>
+
+  <h3>主な特徴</h3>
+  <ul>
+    <li><strong>軽量XOR暗号化：</strong> 低負荷・高速な暗号化処理を実現</li>
+    <li><strong>ファイル名まで暗号化：</strong> 元のファイル構成を推測されにくい安全設計</li>
+    <li><strong>再帰ディレクトリ対応：</strong> フォルダ全体を一括で暗号化／復号化可能</li>
+    <li><strong>静的ライブラリ構成：</strong> 配布時に外部アクセスを防止</li>
+  </ul>
+
+  <h3>暗号処理の仕組み</h3>
+  <p>
+    XOR演算による単純な暗号化を採用し、バイナリ全体とファイル名の両方を保護します。  
+    <code>XOR_KEY</code> を使用して全バイトを排他的論理和し、元データを難読化します。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- XORによる暗号・復号処理 ---
+for (size_t i = 0; i &lt; plaintext.size(); ++i)
+{
+    ciphertext[i] = plaintext[i] ^ XOR_KEY;
+}
+  </code></pre>
+
+  <p>
+    ファイル名も同様に1文字ずつXOR変換され、16進数表現へエンコードされます。
+    このため、アセットパス構造をそのまま読み取ることができません。
+  </p>
+
+  <h3>ディレクトリ単位の暗号化処理</h3>
+  <pre><code class="language-cpp">
+// --- Assetsフォルダ全体を暗号化 ---
+FlAssetProtector::EncryptAllInDirectory(
+    "Assets/",
+    "ProtectedAssets/"
+);
+
+// --- 復号化 ---
+FlAssetProtector::DecryptAllToOriginal(
+    "ProtectedAssets/",
+    "DecryptedAssets/"
+);
+  </code></pre>
+
+  <h3>ファイル名暗号化の流れ</h3>
+  <div class="diagram">
+    <pre>
+    OriginalName : "texture_diffuse.png"
+               ▼ XOR + HEX
+    EncryptedName : "A1B2C3D4E5F6..."
+               ▼ 復号時
+    DecryptedName : "texture_diffuse.png"
+    </pre>
+  </div>
+
+  <h3>ストリーム経由での復号読み込み</h3>
+  <p>
+    暗号化されたファイルは、<code>DecryptedInputStream</code> を介して直接読み取ることも可能です。  
+    内部で復号を行い、通常の <code>std::istream</code> として扱えます。
+  </p>
+
+  <pre><code class="language-cpp">
+// --- 例: 復号ストリームの使用 ---
+FlAssetProtector::DecryptedInputStream stream("ProtectedAssets/logo.enc");
+if (stream.IsValid())
+{
+    std::string contents((std::istreambuf_iterator&lt;char&gt;(stream)),
+                          std::istreambuf_iterator&lt;char&gt;());
+}
+  </code></pre>
+
+  <h3>技術的ポイント</h3>
+  <ul>
+    <li><strong>CryptoManager：</strong> ファイル内容とファイル名の暗号化ロジックを集約</li>
+    <li><strong>ディレクトリ操作対応：</strong> <code>std::filesystem</code> により再帰的に処理</li>
+    <li><strong>静的リンク前提：</strong> 外部DLL依存なし、デプロイ時に安全な組み込みが可能</li>
+  </ul>
+
+  <p>
+    <strong>FlAssetProtector</strong> は、
+    開発資産の <strong>セキュリティレイヤー</strong> を担うモジュールです。  
+    アセットの無断流用やリバースエンジニアリングに対し、  
+    軽量ながら確実な防御策を提供します。
+  </p>
+</section>
+
+<section id="debuglogger" class="section">
+  <h2>DebugLogger – 外部ログ出力クラス</h2>
+
+  <p>
+    <strong>DebugLogger</strong> は、実行中のエンジンやエディタの状態を  
+    外部ファイルへ出力するための <strong>デバッグログ管理クラス</strong> です。  
+    各種エラー、アサート、または開発時の挙動確認を目的として設計されています。
+  </p>
+
+    <h3>概要</h3>
+    <p>
+      このクラスは指定したファイルに対してテキスト出力を行い、  
+      ファイル名・行番号・メッセージを含む詳細なデバッグ情報を記録します。  
+      デフォルト出力先は <code>Assets/Data/Log/DebugLog.log</code> です。
+    </p>
+    <ul>
+      <li>アプリケーション全体の動作履歴を追跡可能</li>
+      <li><code>FlFilePathManager</code> により相対パス変換を自動処理</li>
+      <li>マクロ <code>DEBUG_LOG()</code> により、簡潔に呼び出し可能</li>
+    </ul>
+
+  <div class="code-sample">
+    <h3>コード抜粋</h3>
+    <pre><code class="language-cpp">
+// ログ出力用クラス
+class DebugLogger
+{
+public:
+    explicit DebugLogger(const std::string_view& filename = 
+        "Assets/Data/Log/DebugLog.log")
+    {
+        m_logFile.open(filename, std::ios::out | std::ios::app);
+        m_upFPM = std::make_unique&lt;FlFilePathManager&gt;();
+        if (!m_logFile) _ASSERT_EXPR(false, L"ログファイルがありません");
+    }
+
+    void LogDebug(const std::string& message, const char* file, int line)
+    {
+        if (m_logFile.is_open())
+        {
+            auto refl = m_upFPM-&gt;GetRelative(file).generic_string();
+            m_logFile &lt;&lt; GetCurrentDateTime() &lt;&lt; std::endl
+                      &lt;&lt; "[File: " &lt;&lt; refl &lt;&lt; "] "
+                      &lt;&lt; "[Line: " &lt;&lt; line &lt;&lt; "] "
+                      &lt;&lt; message &lt;&lt; std::endl;
+        }
+    }
+};
+
+// 呼び出しマクロ
+#define DEBUG_LOG(logger, message) logger-&gt;LogDebug(message, __FILE__, __LINE__)
+    </code></pre>
+  </div>
+
+    <h3>利用例</h3>
+    <pre><code class="language-cpp">
+auto logger = std::make_shared&lt;DebugLogger&gt;();
+
+// ファイル書き込みログ
+DEBUG_LOG(logger, "Initialize Renderer Success");
+
+// 出力内容例:
+// 2025-10-06 17:05:12.123456789
+// [File: Source/Graphics/Renderer.cpp] [Line: 85] Initialize Renderer Success
+    </code></pre>
+
+    <h3>特徴</h3>
+    <ul>
+      <li>高精度な時刻出力（ナノ秒単位）</li>
+      <li>自動改行＋日時付きログ形式</li>
+      <li>開発版・リリース版での切り替えが容易</li>
+      <li>全ファイル共通のデバッグログ基盤として統一使用可能</li>
+    </ul>
+</section>
+
+<section id="formula" class="section highlight">
+  <h2>Formula – 便利関数群</h2>
+
+  <p>
+    <strong>Formula</strong> 名前空間は、ゲームロジックやシミュレーションで頻出する  
+    数学的・確率的処理を簡潔に記述するための<strong>ユーティリティ集</strong>です。  
+    乱数生成、確率抽選、三角関数カーブ、距離計算などを統一的に提供します。
+  </p>
+
+    <h3>主な機能</h3>
+    <ul>
+      <li><strong>Rand</strong> — 任意型（整数・浮動小数点）対応の乱数生成</li>
+      <li><strong>Lottery</strong> — 重み付き抽選（確率マップ / 配列両対応）</li>
+      <li><strong>Sin / Cos / Tan Curve</strong> — 角度入力の周期曲線生成</li>
+      <li><strong>GetDistance</strong> — Vector2 / Vector3 の距離演算</li>
+    </ul>
+
+    <h3>コード抜粋</h3>
+    <pre><code class="language-cpp">
+namespace Formula
+{
+    // ===== 基本乱数 =====
+    template&lt;typename T&gt;
+    decltype(auto) Rand(const T min, const T max) noexcept
+    {
+        std::random_device rd;
+        std::mt19937 mt{ rd() };
+
+        if constexpr (std::is_integral_v&lt;T&gt;)
+            return std::uniform_int_distribution&lt;T&gt;{ min, max }(mt);
+        else
+            return std::uniform_real_distribution&lt;T&gt;{ min, max }(mt);
+    }
+
+    // ===== 重み付き抽選 =====
+    const std::string Lottery(const std::unordered_map&lt;std::string, double&gt;& items) noexcept
+    {
+        std::vector&lt;std::pair&lt;std::string, double&gt;&gt; cdf;
+        double cumulative = 0.0;
+        for (auto& item : items)
+        {
+            cumulative += item.second;
+            cdf.emplace_back(item.first, cumulative);
+        }
+        auto r = Rand(0.0, cumulative);
+        auto it = std::lower_bound(cdf.begin(), cdf.end(), r,
+            [](const auto& e, double val){ return e.second < val; });
+        return it-&gt;first;
+    }
+
+    // ===== 三角カーブ =====
+    inline auto SinCurve(float deg, double amp = 1.0, double freq = 1.0, double phase = 0.0) noexcept
+    {
+        const auto rad = DirectX::XMConvertToRadians(deg);
+        return amp * std::sin(freq * rad + phase);
+    }
+
+    // ===== 距離計算 =====
+    inline auto GetDistance(const Math::Vector3& a, const Math::Vector3& b) noexcept
+    {
+        return std::sqrt((a.x-b.x)*(a.x-b.x)+(a.y-b.y)*(a.y-b.y)+(a.z-b.z)*(a.z-b.z));
+    }
+}
+    </code></pre>
+
+    <h3>利用例</h3>
+    <pre><code class="language-cpp">
+// 整数乱数
+int n = Formula::Rand(0, 10);
+
+// 浮動小数点乱数
+float t = Formula::Rand(0.0f, 1.0f);
+
+// 抽選（レアドロップ判定など）
+std::unordered_map&lt;std::string, double&gt; table = {
+  { "Common", 70.0 },
+  { "Rare",   25.0 },
+  { "Epic",    5.0 }
+};
+auto result = Formula::Lottery(table);
+
+// サイン波によるゆらぎ
+float offset = Formula::SinCurve(time * 60.0f, 5.0, 1.0);
+
+// 座標間の距離
+float dist = Formula::GetDistance(playerPos, targetPos);
+    </code></pre>
+
+    <h3>特徴</h3>
+    <ul>
+      <li>テンプレートで整数・浮動小数点を自動判別</li>
+      <li>DirectX数値単位に合わせた角度変換をサポート</li>
+      <li>ラムダを活用した柔軟な除外乱数生成</li>
+    </ul>
+</section>
+
+<section id="navigation" class="section">
+  <h2>Next Pages</h2>
+  <p>以下のページで、PH-ECSのアーキテクチャや実装思想をさらに詳しく解説しています。</p>
+
+  <ul class="toc">
+    <li><a href="architecture.html">◀ Architecture – 内部構造とデータフロー</a></li>
+    <li><a href="editor.html">◀ Editor – エディタ機能群</a></li>
+    <li><a href="developer.html">▶ Developer – 開発者コメント</a></li>
+    <li><a href="index.html">◀ Back to Top – トップページへ戻る</a></li>
+  </ul>
+</section>
+
+<footer class="footer">
+  <p>© 2025 Falcon Engine Project – Pragmatic Hybrid ECS</p>
+</footer>
+
+</body>
+</html>

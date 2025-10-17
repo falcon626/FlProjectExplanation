@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Developer Comments | Pragmatic Hybrid ECS</title>
+  <meta name="description" content="PH-ECSの開発者による設計背景・思想・アーキテクチャ決定の理由を記録したページ。">
+  <link rel="stylesheet" href="CSS/styles.css">
+</head>
+<body>
+
+<header class="hero">
+  <h1>Developer Comments</h1>
+  <p class="subtitle">なぜこの設計なのか ― 実装思想と技術的判断の背景</p>
+</header>
+
+<section id="overview" class="section">
+  <h2>開発の背景</h2>
+  <p>
+    PH-ECSは、<strong>「ECSかつ実用重視」</strong>をテーマに構築されました。  
+    Pure ECSの学習を0からするには学習コストが高くまた、エディタとの連携を簡易的にするためまずは<a href="https://learning.unity3d.jp/1568/">Hybrid ECS</a>に目を付けました。<br>
+    そこから、<strong>Pragmatic（実用主義）</strong>というキーワードのもと、ほかの設計思想について調べ  
+    「純粋性」よりも「使いやすさ」と「再利用性」を優先しています。
+  </p>
+</section>
+
+<section id="design" class="section highlight">
+  <h2>苦労した点</h2>
+  <ul>
+    <li>回転行列のUI操作でのジンバルロック現象（最終的にクオータニオンで処理）</li>
+    <li>DLLとRuntime間での越境方法（「extern "C"」でのC言語化や2つのプロジェクト間でのポインタ管理など）</li>
+    <li>DirectX12のデバック（<a href="https://developer.nvidia.com/nsight-systems#Platforms">NSight</a>のベータ版か<a href="https://devblogs.microsoft.com/pix/download/">PIX</a>かの外部ツールに頼るしかなかった）</li>
+</ul>
+</section>
+
+<section id="future" class="section">
+  <h2>今後の展望</h2>
+  <ul>
+    <li>🔧 DirectX12対応によるGPUバッチング最適化</li>
+    <li>📜 <a href="https://dev.epicgames.com/documentation/ja-jp/unreal-engine/unreal-header-tool-for-unreal-engine">UHT</a>の再現によるC++でのリファレクション機能</li>
+    <li>🧩 Assetsのサムネイル機能</li>
+    <li>🪶 Asset Importerの拡張（pmx, EXR, USD対応）</li>
+    <li>💡 暗号化の強化</li>
+  </ul>
+  <p>
+    今後の展望は尽きることがないため上記以外にも興味のある機能や現時点での不満点を解決していきます。
+  </p>
+</section>
+
+<section id="closing" class="section highlight">
+  <h2>最後に</h2>
+  <p>
+    このエンジンの開発方針は「<strong>理想を知ったうえで現実を選ぶ</strong>」です。  
+    ECSの完全性を追うのではなく、エディタとトレードオフによる実用性を追求しています。  
+    それが「Pragmatic Hybrid ECS」の名に込めた意図です。
+  </p>
+</section>
+
+<section id="ContentsEnd" class="section">
+  <h2>Contents</h2>
+
+  <ul class="toc">
+    <li><a href="architecture.html">◀ Architecture – 内部構造とデータフロー</a></li>
+    <li><a href="editor.html">◀ Editor – エディタ機能群</a></li>
+    <li><a href="support.html">◀ Support – 各開発支援機能</a></li>
+    <li><a href="index.html">◀ Back to Top – トップページへ戻る</a></li>
+  </ul>
+</section>
+
+<footer class="footer">
+  <p>© 2025 Falcon Engine Project – Developer Comments</p>
+</footer>
+
+</body>
+</html>
