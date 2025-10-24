@@ -24,6 +24,23 @@
 </head>
 <body>
 
+<aside class="sidebar">
+  <h2>ページナビゲーション</h2>
+  <ul>
+    <li><a href="#introduction">Introduction</a></li>
+    <li><a href="#concept">Concept</a></li>
+    <li><a href="#contents">Contents</a></li>
+  </ul>
+
+  <h2>他ページ</h2>
+  <ul>
+    <li><a href="architecture.html">Architecture</a></li>
+    <li><a href="editor.html">Editor</a></li>
+    <li><a href="support.html">Support</a></li>
+    <li><a href="developer.html">Developer</a></li>
+  </ul>
+</aside>
+
 <header class="hero">
   <h1>Pragmatic Hybrid Entity Component System</h1>
   <p class="subtitle">理論よりも実用を ― Component指向とECSの融合設計</p>
@@ -50,7 +67,7 @@
     <h3>1. Pragmatic（実用主義）</h3>
     <p>
       純粋ECSの理論美よりも「現場で使える設計」を優先。  
-      コンポーネントはデータのみでなく、Getter / Setter / EditorRender / Serialize / Deserializeのような
+      コンポーネントはデータのみでなく、Getter / Setter / RenderImGui / Serialize / Deserializeのような
       <strong>補助的な動作関数を持つ</strong>ことを容認します。
 
       <br>

@@ -158,6 +158,68 @@
    .toc a:hover {
      color: var(--accent-light);
    }
+
+       .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 240px;
+      height: 100%;
+      background: #1e1e1e;
+      color: #fff;
+      padding: 20px 15px;
+      box-shadow: 2px 0 6px rgba(0, 0, 0, 0.4);
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar h2 {
+      font-size: 1.2em;
+      margin-bottom: 10px;
+      border-bottom: 1px solid #555;
+      padding-bottom: 6px;
+    }
+
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 10px 0 25px 0;
+    }
+
+    .sidebar li {
+      margin: 6px 0;
+    }
+
+    .sidebar a {
+      color: #ddd;
+      text-decoration: none;
+      font-size: 0.95em;
+      transition: color 0.2s;
+    }
+
+    .sidebar a:hover {
+      color: #00b3ff;
+    }
+
+    /* ===== Main Content Area ===== */
+    main {
+      margin-left: 260px;
+      padding: 30px 40px;
+      max-width: 900px;
+    }
+
+    header.hero {
+      margin-left: 260px;
+    }
+
+    footer.footer {
+      margin-left: 260px;
+    }
+
+    /* スクロール位置補正（見出しがヘッダに隠れないように） */
+    section {
+      scroll-margin-top: 80px;
+    }
    
    /* ==============================
       Footer
