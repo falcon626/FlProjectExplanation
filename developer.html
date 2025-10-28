@@ -12,11 +12,11 @@
 <aside class="sidebar">
   <h2>ページナビゲーション</h2>
   <ul>
-    <li><a href="#overview">開発の背景</a></li>
-    <li><a href="#design">苦労した点</a></li>
-    <li><a href="#future">今後の展望</a></li>
-    <li><a href="#closing">最後に</a></li>
-    <li><a href="#ContentsEnd">Next Pages</a></li>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#design">Design</a></li>
+    <li><a href="#future">Future</a></li>
+    <li><a href="#closing">Closing</a></li>
+    <li><a href="#ContentsEnd">Contents</a></li>
   </ul>
 
   <h2>他ページ</h2>
@@ -36,7 +36,7 @@
 </header>
 
 <section id="overview" class="section">
-  <h2>開発の背景</h2>
+  <h2>Overview</h2>
   <p>
     PH-ECSは、<strong>「ECSかつ実用重視」</strong>をテーマに構築されました。  
     Pure ECSの学習を0からするには学習コストが高くまた、エディタとの連携を簡易的にするためまずは<a href="https://learning.unity3d.jp/1568/">Hybrid ECS</a>に目を付けました。<br>
@@ -46,7 +46,7 @@
 </section>
 
 <section id="design" class="section highlight">
-  <h2>苦労した点</h2>
+  <h2>Design</h2>
   <ul>
     <li>回転行列のUI操作でのジンバルロック現象（最終的にクオータニオンで処理）</li>
     <li>DLLとRuntime間での越境方法（「extern "C"」でのC言語化や2つのプロジェクト間でのポインタ管理など）</li>
@@ -55,7 +55,7 @@
 </section>
 
 <section id="future" class="section">
-  <h2>今後の展望</h2>
+  <h2>Future</h2>
   <ul>
     <li>🔧 DirectX12対応によるGPUバッチング最適化</li>
     <li>📜 <a href="https://dev.epicgames.com/documentation/ja-jp/unreal-engine/unreal-header-tool-for-unreal-engine">UHT</a>の再現によるC++でのリファレクション機能</li>
@@ -69,7 +69,7 @@
 </section>
 
 <section id="closing" class="section highlight">
-  <h2>最後に</h2>
+  <h2>Closing</h2>
   <p>
     このエンジンの開発方針は「<strong>理想を知ったうえで現実を選ぶ</strong>」です。  
     ECSの完全性を追うのではなく、エディタとトレードオフによる実用性を追求しています。  
