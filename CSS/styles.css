@@ -208,13 +208,42 @@
       max-width: 900px;
     }
 
-    header.hero {
-      margin-left: 260px;
-    }
+/* --- Sidebar offset handling (修正版) --- */
+body {
+  display: flex;
+  flex-direction: row;
+}
 
-    footer.footer {
-      margin-left: 260px;
-    }
+/* Sidebar remains fixed */
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 240px;
+  height: 100%;
+  background: #1e1e1e;
+  color: #fff;
+  padding: 20px 15px;
+  box-shadow: 2px 0 6px rgba(0, 0, 0, 0.4);
+  overflow-y: auto;
+  z-index: 100;
+}
+
+/* Main wrapper for all page content */
+.main-content {
+  margin-left: 240px;  /* ← サイドバー分を避ける */
+  width: calc(100% - 240px);
+}
+
+/* ヘッダーとセクションの中央基準を一致させる */
+.main-content header.hero,
+.main-content .section,
+.main-content footer.footer {
+  max-width: 900px;
+  margin: 0 auto;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
 
     /* スクロール位置補正（見出しがヘッダに隠れないように） */
     section {
