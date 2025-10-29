@@ -27,7 +27,6 @@
     <li><a href="#resourceadmin">FlResourceAdministrator</a></li>
     <li><a href="#assetprotector">FlAssetProtector</a></li>
     <li><a href="#debuglogger">DebugLogger</a></li>
-    <li><a href="#assetprotector">FlAssetsCypter</a></li>
     <li><a href="#formula">Formula</a></li>
     <li><a href="#navigation">Next Pages</a></li>
   </ul>
@@ -889,115 +888,7 @@ DEBUG_LOG(logger, "Initialize Renderer Success");
     </ul>
 </section>
 
-<section id="assetprotector" class="section highlight">
-  <h2>FlAssetProtector – アセット暗号化と復号</h2>
-  <p>
-    <strong>FlAssetProtector</strong> は、ゲームアセット（画像・モデル・音声・JSONなど）を  
-    XOR暗号を用いて保護・復号するための軽量なファイルセキュリティモジュールです。  
-    目的は「二次配布・覗き見・改ざん防止」であり、軽量かつ高速に動作します。
-  </p>
-
-  <h3>主な特徴</h3>
-  <ul>
-    <li>軽量な <code>XOR_KEY</code> による簡易暗号化方式（AES等に比べ高速）</li>
-    <li>アセットファイル・JSONファイル・ディレクトリ単位の暗号化／復号に対応</li>
-    <li>ファイル名そのものを暗号化して構造的な秘匿を実現</li>
-    <li>復号済みバッファを即時ストリームとして扱える <code>DecryptedInputStream</code> クラスを提供</li>
-  </ul>
-
-  <h3>CryptoManager クラス</h3>
-  <p>
-    暗号／復号の中核を担う静的クラスです。  
-    XORキー（0xF1）を用いてバイト単位で暗号化します。
-  </p>
-  <pre><code class="language-cpp">
-class CryptoManager {
-public:
-    static bool EncryptXOR(const std::vector&lt;uint8_t&gt;&amp; plaintext, std::vector&lt;uint8_t&gt;&amp; ciphertext) {
-        ciphertext.resize(plaintext.size());
-        for (size_t i = 0; i &lt; plaintext.size(); ++i)
-            ciphertext[i] = plaintext[i] ^ XOR_KEY;
-        return true;
-    }
-
-    static std::string EncryptFilename(const std::string&amp; original) {
-        std::ostringstream oss;
-        for (char ch : original) {
-            uint8_t enc = static_cast&lt;uint8_t&gt;(ch ^ XOR_KEY);
-            oss &lt;&lt; std::hex &lt;&lt; std::setw(2) &lt;&lt; std::setfill('0') &lt;&lt; std::uppercase &lt;&lt; static_cast&lt;int&gt;(enc);
-        }
-        return oss.str();
-    }
-};
-  </code></pre>
-  <p>
-    <code>EncryptXOR()</code> / <code>DecryptXOR()</code> はバイナリデータを直接変換し、  
-    <code>EncryptFilename()</code> / <code>DecryptFilename()</code> はファイル名を16進エンコード形式で変換します。
-  </p>
-
-  <h3>ファイル単位の暗号化関数</h3>
-  <p>
-    バイナリデータを読み込み、暗号化後に指定の出力ディレクトリへ保存します。
-  </p>
-  <pre><code class="language-cpp">
-bool EncryptAssetFile(const std::filesystem::path&amp; inputPath, const std::filesystem::path&amp; outputPath)
-{
-    std::vector&lt;uint8_t&gt; raw;
-    if (!ReadFileBinary(inputPath, raw)) return false;
-    std::vector&lt;uint8_t&gt; encrypted;
-    CryptoManager::EncryptXOR(raw, encrypted);
-
-    std::filesystem::create_directories(outputPath.parent_path());
-    return WriteFileBinary(outputPath, encrypted);
-}
-  </code></pre>
-
-  <h3>ディレクトリ全体の暗号化／復号</h3>
-  <p>
-    <code>EncryptAllInDirectory()</code> により指定フォルダ以下の全ファイルを暗号化、  
-    <code>DecryptAllToOriginal()</code> により元の状態へ復号できます。  
-    暗号化時にはファイル名自体もエンコードされるため、  
-    ファイル構成をそのまま公開しても内容は特定できません。
-  </p>
-
-  <h3>復号ストリームクラス</h3>
-  <pre><code class="language-cpp">
-class DecryptedInputStream : public std::istream {
-public:
-    explicit DecryptedInputStream(const std::filesystem::path&amp; encryptedPath) {
-        std::vector&lt;uint8_t&gt; raw;
-        if (!DecryptAssetFile(encryptedPath, raw)) return;
-        m_buffer.assign(raw.begin(), raw.end());
-        m_buf = std::make_unique&lt;std::stringbuf&gt;(std::string(m_buffer.begin(), m_buffer.end()), std::ios::in);
-        rdbuf(m_buf.get());
-        m_valid = true;
-    }
-    bool IsValid() const { return m_valid; }
-private:
-    std::vector&lt;char&gt; m_buffer;
-    std::unique_ptr&lt;std::streambuf&gt; m_buf;
-    bool m_valid = false;
-};
-  </code></pre>
-  <p>
-    復号済みデータを直接 <code>std::istream</code> として扱えるため、  
-    JSONやテキストのロード処理にシームレスに組み込めます。
-  </p>
-
-  <h3>利用例</h3>
-  <ul>
-    <li>アセットフォルダ全体を暗号化してビルド配布</li>
-    <li>復号キー（XOR_KEY）は実行時のみロードして安全性確保</li>
-    <li>社外向け配布物でのデータ抜き取り対策</li>
-  </ul>
-
-  <p>
-    このシステムは軽量かつ単純な設計のため、  
-    オーバーヘッドがほぼなく、開発時のワークフローにも影響しません。
-  </p>
-</section>
-
-<section id="formula" class="section">
+<section id="formula" class="section highlight">
   <h2>Formula – 便利関数群</h2>
 
   <p>
@@ -1093,7 +984,7 @@ float dist = Formula::GetDistance(playerPos, targetPos);
     </ul>
 </section>
 
-<section id="navigation" class="section highlight">
+<section id="navigation" class="section">
   <h2>Next Pages</h2>
   <p>以下のページで、PH-ECSのアーキテクチャや実装思想をさらに詳しく解説しています。</p>
 
