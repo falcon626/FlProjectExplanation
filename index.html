@@ -24,9 +24,13 @@
 </head>
 <body>
 
+  <!-- サイドバー開閉ボタン -->
+  <button class="menu-toggle" onclick="toggleSidebar()">☰</button>
+
 <aside class="sidebar">
   <h2>ページナビゲーション</h2>
   <ul>
+    <li><a href="#profile">Profile</a></li>
     <li><a href="#introduction">Introduction</a></li>
     <li><a href="#concept">Concept</a></li>
     <li><a href="#contents">Contents</a></li>
@@ -96,7 +100,7 @@
         </video>
         <p>
           2年時に作成した作品です。
-          この作品は来年の3年時に向けての技術習得用としてさくせいしました。
+          この作品は来年の3年時に向けての技術習得用として作成しました。
         </p>
         <p>
           ゲームの特徴は魚の主人公が障害物をよけながら右に進むものとなっています。
@@ -186,4 +190,13 @@
 </div>
 
 </body>
+
+<script>
+  function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    sidebar.classList.toggle('open');
+    sidebar.classList.toggle('closed');
+  }
+</script>
+
 </html>
