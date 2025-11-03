@@ -28,6 +28,150 @@
      letter-spacing: 0.03em;
      scroll-behavior: smooth;
    }
+
+   /* ==============================
+   Responsive Design
+   ============================== */
+
+/* 画面幅が 1024px 以下のとき（タブレット） */
+@media screen and (max-width: 1024px) {
+  .sidebar {
+    width: 200px;
+    padding: 15px;
+  }
+
+  .main-content {
+    margin-left: 200px;
+    width: calc(100% - 200px);
+  }
+
+  .main-content header.hero,
+  .main-content .section,
+  .main-content footer.footer {
+    max-width: 800px;
+    padding: 1.5rem;
+  }
+
+  .hero h1 {
+    font-size: 2.2rem;
+  }
+
+  .section h2 {
+    font-size: 1.5rem;
+  }
+}
+
+/* 画面幅が 768px 以下のとき（スマホ・小型タブレット） */
+@media screen and (max-width: 768px) {
+
+  /* サイドバーを非表示にし、上部ナビゲーション化 */
+  .sidebar {
+    position: relative;
+    width: 100%;
+    height: auto;
+    box-shadow: none;
+    border-bottom: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .sidebar h2 {
+    border: none;
+    margin-bottom: 0.5rem;
+  }
+
+  .sidebar ul {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
+
+  .sidebar li {
+    margin: 0;
+  }
+
+  .sidebar a {
+    font-size: 0.9rem;
+    padding: 0.5rem;
+  }
+
+  /* 本文を全幅に変更 */
+  .main-content {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .main-content header.hero,
+  .main-content .section,
+  .main-content footer.footer {
+    max-width: 95%;
+    padding: 1.2rem;
+  }
+
+  /* ヒーロー（タイトル部）をコンパクトに */
+  .hero {
+    padding: 4rem 1rem 2.5rem 1rem;
+  }
+
+  .hero h1 {
+    font-size: 1.8rem;
+  }
+
+  .hero .subtitle {
+    font-size: 1rem;
+  }
+
+  /* 画像・図を調整 */
+  .diagram img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* コンセプトブロックの余白を縮小 */
+  .concept-block {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* TOCを小さく整列 */
+  .toc {
+    font-size: 0.9rem;
+  }
+
+  /* スクロール補正（見出し位置ずれ防止） */
+  section {
+    scroll-margin-top: 120px;
+  }
+}
+
+/* 画面幅が 480px 以下のとき（スマホ縦） */
+@media screen and (max-width: 480px) {
+  .hero h1 {
+    font-size: 1.5rem;
+  }
+
+  .hero .subtitle {
+    font-size: 0.9rem;
+  }
+
+  .section h2 {
+    font-size: 1.2rem;
+  }
+
+  .concept-block h3 {
+    font-size: 1rem;
+  }
+
+  .toc a {
+    font-size: 0.85rem;
+  }
+
+  footer.footer {
+    font-size: 0.8rem;
+  }
+}
    
    /* ==============================
       Header (Hero)
@@ -227,6 +371,13 @@ body {
   box-shadow: 2px 0 6px rgba(0, 0, 0, 0.4);
   overflow-y: auto;
   z-index: 100;
+}
+    
+video {
+  max-width: 100%; /* 動画の最大幅を100%に設定 */
+  height: auto; /* 高さを自動調整 */
+  display: block; /* 余白が生じないようにブロック要素として表示 */
+  margin: 20px 0; /* 必要に応じて余白を設定 */
 }
 
 /* Main wrapper for all page content */
