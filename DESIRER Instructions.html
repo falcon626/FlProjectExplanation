@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <link rel="icon" href="Image/DESIRER.ico">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DESIRER - ゲームの説明書</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      color: #eee;
+      background-color: #2d2d2d;
+      margin: 0;
+      padding: 0;
+    }
+
+    video {
+      max-width: 100%; /* 動画の最大幅を100%に設定 */
+      height: auto; /* 高さを自動調整 */
+      display: block; /* 余白が生じないようにブロック要素として表示 */
+      margin: 20px 0; /* 必要に応じて余白を設定 */
+    }
+
+    .header {
+      text-align: center;
+      padding: 20px;
+      color: #eee;
+      background-color: #111;
+      cursor: pointer; /* カーソルをポインターに変更 */
+      transition: color 0.5s ease; /* カラーの変化にアニメーションを追加 */
+    }
+
+    .header:hover {
+      color: #ff5c5c; /* ホバー時の色 */
+    }
+    
+    h1 {
+      font-size: 32px;
+      color: #ff5c5c;
+      margin-top: 10px;
+      transition: color 0.5s ease; /* カラーの変化にアニメーションを追加 */
+    }
+    h1:hover {
+      color: #ff0000; /* ホバー時の色 */
+    }
+
+    h2 {
+      font-size: 28px;
+      color: #f2aa4c;
+      transition: color 0.5s ease;
+    }
+
+    h2:hover {
+      color: #ff5c5c;
+    }
+
+    h3 {
+      font-size: 24px;
+      color: #f2aa4c;
+      transition: color 0.5s ease;
+    }
+
+    h3:hover {
+      color: #ff0000; /* ホバー時の色 */
+    }
+
+    h4 {
+      font-size: 18px;
+      line-height: 1.6em;
+      margin-bottom: 20px;
+      color: #bbb;
+    }
+
+    p {
+      font-size: 18px;
+      line-height: 1.6em;
+      margin-bottom: 20px;
+      color: #bbb;
+    }
+
+    a {
+      color: #f2aa4c; /* リンクの通常の色 */
+      text-decoration: none; /* リンクの下線を非表示にする */
+    }
+
+/* リンクがホバーされたときのスタイル */
+    a:hover {
+      color: #ff5c5c; /* ホバー時の色（例：赤） */
+    }
+
+    section {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px 40px;
+    }
+
+    section#controls,
+    section#game-system,
+    section#game-world {
+      background-color: #3c3c3c;
+      padding: 40px;
+      border-radius: 20px;
+      margin-top: 30px;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+    
+    /* クリッカブルなスタイル */
+    h2 {
+      cursor: pointer;
+      padding: 10px;
+      background-color: #333;
+      border: 1px solid #555;
+      border-radius: 5px;
+      margin-bottom: 5px;
+    }
+
+    /* divで囲み、初期状態で非表示 */
+    .content-container {
+      display: none;
+    }
+
+    .content {
+      /* ボーダーと余白を設定 */
+      border: 1px solid #555;
+      padding: 10px;
+      border-radius: 5px;
+    }
+
+    #scrollToTopBtn {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #ff5c5c;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 10px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+
+    #scrollToTopBtn:hover {
+      background-color: #333;
+    }
+
+  </style>
+</head>
+
+<body>
+
+  <!-- ゲームタイトル -->
+  <div class="header">
+    <h1>DESIRER</h1>
+  </div>
+
+  <!-- 操作キーの説明 -->
+  <section id="controls">
+    <h2 onclick="toggleVisibility('controlsContent')">操作キー</h2>
+    <!-- ここに操作キーに関する画像か動画を挿入 -->
+    <div id="controlsContent" class="content-container">
+        <div class="content">
+    <h3>キーボード操作用</h3>
+    <p><strong>← →</strong>：移動</p>
+    <p><strong>その場で留まりながら ↓</strong>：回復</p>
+    <img src="Image\heal.png" alt="回復画像">
+    <p><strong>V</strong>：近接攻撃</p>
+    <img src="Image\atk.png" alt="攻撃画像">
+    <p><strong>V 長押し</strong>：近接溜め攻撃</p>
+    <img src="Image\chargeAtk.gif" alt="溜め攻撃画像">
+    <p><strong>↑ + V</strong>：上攻撃</p>
+    <p><strong>空中にいる間に ↓ + V</strong>：下攻撃</p>
+    <img src="Image\updwAtk.png" alt="上下攻撃画像">
+    <p><strong>A</strong>：近接武器切り替え</p>
+    <p><strong>S, D, F</strong>：魔法</p>
+    <img src="Image\magic.jpg" alt="魔法画像">
+    <p><strong>Z</strong>：間接魔法攻撃</p>
+    <p><strong>X</strong>：回避兼ダッシュ</p>
+    <img src="Image\avoid.jpg" alt="回避画像">
+    <p><strong>C</strong>：ジャンプ＜二段ジャンプ可＞</p>
+    <p><strong>F1</strong>：カーソル表示</p>
+    <p><strong>F2</strong>：カーソル非表示</p>
+    <h3>Pad操作用</h3>
+    <img src="Image\Pad.png" alt="Pad操作キー画像">
+    </div>
+    </div>
+  </section>
+
+  <!-- ゲームシステムの説明 -->
+  <section id="game-system">
+    <h2 onclick="toggleVisibility('gameSystemContent')">ゲームシステム</h2>
+    <!-- divで囲み、初期状態で非表示 -->
+    <div id="gameSystemContent" class="content-container">
+      <div class="content">
+    <!-- ここにゲームシステムに関する画像かgifを挿入 参考: <img src="image.png" alt="ゲームシステムの画像"> -->
+    <h3>UI</h3>
+    <p>上からHP、MP、現在の<a href="#annotation">ソウル</a>数、装備している魔法</p>
+    <img src="Image\UIplayer.png" alt="UI画像">
+    <p>上が<a href="#annotation"> TP</a>で、下が攻撃の溜めゲージ</p>
+    <img src="image\UIgage.png" alt="UI画像">
+    <p>右が装備武器で、左が回復ポーション</p>
+    <img src="Image\UIequi.png" alt="UI画像">
+    <h3>武器属性</h3>
+    <p>敵に効く武器を覚えて対応＜右から強、中、弱＞</p>
+    <img src="Image\system.png" alt="属性説明画像">
+    <h3>アクション</h3>
+    <p>壁に張り付き、滑るまたは壁キックできる</p>
+    <p>回避は正面はもちろん斜め上、斜め下にもできる</p>
+    <img src="Image\kick.png" alt="壁キック画像">
+    <h3>ステータス</h3>
+    <p><a href="#annotation">ソウル</a>を消費し魔法またはステータス上限を開放<br>＜魔法は最大、九つ＞</p>
+    <img src="Image\status.png" alt="Status強化画像">
+    <h3>セーブ</h3>
+    <p>オートセーブに対応しており、ステージセレクト画面に戻るとデータをセーブ</p>
+    <img src="Image\save.png" alt="Saveアナウンス画像">
+    <pre>
+
+
+
+    <h4 id="annotation">※注釈</h4>
+    <p>ソウルとは敵を倒すと貰え、強化するために使うモノ</p>
+    <p>TPとはスタミナのこと</p>
+    </pre>  
+    </div>
+    </div>
+  </section>
+
+  <!-- 世界観の紹介 -->
+  <section id="game-world">
+    <h2 onclick="toggleVisibility('gameWorldContent')">世界観</h2>
+    <!-- divで囲み、初期状態で非表示 -->
+    <div id="gameWorldContent" class="content-container">
+      <div class="content">
+    <!-- ここに世界観に関する画像を挿入 参考: <img src="image.png" alt="世界観の画像"> -->
+    <video id="titleVideo" controls width="800" loop>
+      <source src="Video/title.mp4" type="video/mp4">
+      タイトル画面
+    </video>
+    <p>昔々、愚かな戦争によって世界が滅んでしまいました。何とか生き残った者は小人へと姿を変えて生き残りました。そんな小人の末裔があなたです。
+      あなたは元の人間の大きさに戻る手段を研究していた施設の存在を知ります。<br>あなたは大きくなるということを強く望み施設に向かいます。<br>これはそんなお話...
+    </p>
+    </div>
+    </div>
+  </section>
+
+   <!-- ページトップに戻るボタン -->
+   <button id="scrollToTopBtn" onclick="scrollToTop()">Top</button>
+
+   <script>
+     // スクロール時に実行
+     window.addEventListener("scroll", handleScroll);
+ 
+     function handleScroll() {
+       var scrollToTopBtn = document.getElementById("scrollToTopBtn");
+       if (document.body.scrollTop > 20 || document.documentElement.scrollTop > 20) {
+         scrollToTopBtn.style.display = "block";
+       } else {
+         scrollToTopBtn.style.display = "none";
+       }
+     }
+ 
+     function scrollToTop() {
+       document.body.scrollTop = 0;
+       document.documentElement.scrollTop = 0;
+     }
+ 
+     var video = document.getElementById("titleVideo");
+     
+     function isElementInViewport(el) {
+       var rect = el.getBoundingClientRect();
+       return (
+         rect.top >= 0 &&
+         rect.left >= 0 &&
+         rect.bottom <= (window.innerHeight || document.documentElement.clientHeight) &&
+         rect.right <= (window.innerWidth || document.documentElement.clientWidth)
+       );
+     }
+ 
+     function playPauseVideo() {
+       if (isElementInViewport(video)) {
+         video.play();
+       }
+     }
+ 
+     // スクロール時に実行
+     window.addEventListener("scroll", playPauseVideo);
+     // ページ読み込み時にも実行
+     window.addEventListener("load", playPauseVideo);
+ 
+     function toggleVisibility(elementId) {
+       var element = document.getElementById(elementId);
+       if (element.style.display === 'none' || element.style.display === '') {
+         element.style.display = 'block';
+       } else {
+         element.style.display = 'none';
+       }
+     }
+ 
+     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+       anchor.addEventListener('click', function (e) {
+         e.preventDefault();
+ 
+         document.querySelector(this.getAttribute('href')).scrollIntoView({
+           behavior: 'smooth'
+         });
+       });
+     });
+   </script>
+</body>
+
+</html>
