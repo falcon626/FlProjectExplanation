@@ -79,9 +79,8 @@
         </div>
         <pre><code class="language-cpp">
 // --- 抜粋: Game Viewport Window --- 
-                                                ・
-                                                ・
-                                                ・
+{
+    ...
 
     auto windowContentSize      { ImGui::GetContentRegionAvail() };
     auto gameScreenOriginalSize { ImVec2{ static_cast&lt;float&gt;m_windowW, static_cast&lt;float&gt;m_windowH } };
@@ -204,9 +203,9 @@ if (ImGui::BeginPopupContextItem())
         FlEditorAdministrator::Instance().GetLogger()->AddLog("Open %s",
             entry.path.string().c_str());
     }
-                      ・
-                      ・
-                      ・
+
+    ...
+
     if (ImGui::MenuItem("Copy Guid"))
     {
         auto guid { FlResourceAdministrator::Instance()
@@ -224,9 +223,9 @@ if (ImGui::BeginPopupContextItem())
                 entry.path.string().c_str());
         }
     }
-                      ・
-                      ・
-                      ・
+    
+    ...
+    
     if (ImGui::MenuItem("Delete"))
         m_pendingPopup = PopupRequest{ entry.path, PopupRequest::Type::Delete };
     ImGui::EndPopup();

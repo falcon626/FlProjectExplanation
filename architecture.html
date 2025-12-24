@@ -26,7 +26,7 @@
       <li><a href="#architecture-diagram">Architecture Diagram</a></li>
       <li><a href="#renderer-layer">Renderer Layer</a></li>
       <li><a href="#hot-reload-flow">Hot Reload Flow</a></li>
-      <li><a href="#hybridization">Hybridization</a></li>
+      <li><a href="#interface_boundaries">Interface Boundaries</a></li>
       <li><a href="#navigation">Next Pages</a></li>
     </ul>
 
@@ -105,9 +105,9 @@ for (auto&& layout : m_semanticsLayout)
 		CreateVertexBuffer(vertices.Normal, sizeof(Math::Vector3),
 			ansi_to_wide(_CRT_STRINGIZE_(vertices.Normal)), &m_pNorBuffer, m_norView, m_views, vertexCount);
 		break;
-                                                      ・
-                                                      ・
-                                                      ・
+  ...
+  }
+}
         </code></pre>
         上記のコードで頂点バッファをVSのレイアウトの分作成します。
         <br>
@@ -159,25 +159,16 @@ for (auto&& layout : m_semanticsLayout)
       </div>
     </section>
 
-    <section id="hybridization" class="section highlight">
-      <h2>Hybridization – Component指向 × ECS構造</h2>
+    <section id="interface_boundaries" class="section highlight">
+      <h2>Interface Boundaries</h2>
+
       <p>
-        Hybrid ECSは、Componentを従来の「単なるデータ」でも「自己完結クラス」でもない形として設計しています。
-        Componentはデータ保持＋最小限の補助機能に限定され、
-        あらゆる処理ロジックはSystem側に実装されます。
+        境界越境制約(Interface Boundaries)は、C ABI互換性を持たせまた、例外を越境させないことを約束します。<br>
+        C ABI互換性を持たせるために<a
+          href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、POD化には多くの制約がありこれを改善するため共通のヘッダに構造体を宣言し、インスタンスのポインタでやり取りを行っています。
+        そのため.cxxファイルは抽象化したテンプレートコードであり、実際に動く.c++ファイルはこの制約を厳守した形にしています。
       </p>
 
-      <div class="concept-block">
-        <h3>Componentの責務（厳守）</h3>
-        <ul>
-          <li>Getter / Setter</li>
-          <li>Editor表示用 <code>RenderEditor()</code></li>
-          <li>シリアライズ <code>Serialize()</code> / <code>Deserialize()</code></li>
-        </ul>
-        <p>
-          これ以外のロジックを持たせないことで、Systemとの明確な責務分離を維持しています。
-        </p>
-      </div>
     </section>
 
     <section id="navigation" class="section">
