@@ -621,7 +621,7 @@ if (open)
           <h4>🌳 技術的ポイント</h4>
           <ul>
             <li>ルートEntityを起点に、<strong>再帰的に子Entityをツリー構造として描画</strong>。</li>
-            <li>Scene保存／読込はファイルダイアログを通じて即時反映。</li>
+            <li>Scene・Prefab保存／読込はファイルダイアログを通じて即時反映。</li>
           </ul>
         </div>
 
@@ -635,63 +635,111 @@ if (open)
         </div>
 
         <pre><code class="language-cpp">
-// --- 抜粋: FlInspectorAndHierarchyEditor::RenderInspector ---
-if (auto sp = m_selectedEntity.lock())
+// --- 抜粋: FlECSInspectorAndHierarchy::RenderInspectorWindow ---
+if (!ImGui::Begin(title, p_open))
 {
-    ImGui::Text("ID: %d", sp->id);
-    ImGui::Separator();
+    ImGui::End();
+    return;
+}
 
-    // 名前変更
-    char nameBuffer[Def::BitMaskPos9];
-    strncpy_s(nameBuffer, sizeof(nameBuffer), sp->name.c_str(), sizeof(nameBuffer) - Def::ULongLongOne);
-    if (ImGui::InputText("Name", nameBuffer, sizeof(nameBuffer))) {
-        sp->name = nameBuffer;
-    }
+if (m_selectedEntityId == UINT32_MAX) {
+    ImGui::TextUnformatted("No entity selected.");
+    if (ImGui::Button("Refresh Entities")) RefreshEntityList();
+    ImGui::End();
+    return;
+}
 
-    ImGui::SeparatorText("Components");
-
-    // --- 各コンポーネントの描画 ---
-    for (auto& comp : sp->components)
+for (const auto& typeName : compTypes)
+{
+    // Collapsing header per component type
+    if (ImGui::CollapsingHeader(typeName.c_str()))
     {
-        if (ImGui::CollapsingHeader(comp->GetType().c_str(), ImGuiTreeNodeFlags_DefaultOpen))
-        {
-            ImGui::Indent();
-            comp->RenderImGui(); // Editor用の描画関数
-            if (ImGui::Button(("Remove##" + comp->GetType()).c_str()))
-                FlScene::Instance().DetachComponentLater(sp->id, comp->GetType());
-            ImGui::Unindent();
+        bool rendered = FlEntityComponentSystemKernel::Instance().RenderComponentEditor(typeName, id);
+        if (!rendered) 
+            ImGui::TextDisabled("No editor for this component (or missing reflection).");
+        
+        if (typeName == "Transform") continue;
+        if (ImGui::Button((std::string("Remove##") + typeName).c_str())) {
+            FlEntityComponentSystemKernel::Instance().RemoveComponent(typeName, id);
+            FlEditorAdministrator::Instance().GetLogger()->AddLog("Removed component %s from %u", typeName.c_str(), id);
+            compTypes = FlEntityComponentSystemKernel::Instance().GetEntityComponentTypes(id);
         }
-    }
-
-    // --- コンポーネント追加 ---
-    if (!attachableTypes.empty())
-    {
-        ImGui::Text("Add Component");
-        static int selectedIndex = Def::IntZero;
-        if (selectedIndex >= attachableTypes.size()) selectedIndex = Def::IntZero;
-        if (ImGui::BeginCombo("##ComponentTypes", attachableTypes[selectedIndex]))
-        {
-            ...
-        }
-        ImGui::EndCombo();
-        if (ImGui::Button("Attach"))
-            FlScene::Instance().AttachComponent(sp->id, attachableTypes[selectedIndex]);
     }
 }
+
+ImGui::Separator();
+ImGui::Text("Add Component");
+
+// すべての登録コンポーネント名を取得
+const auto& allTypes = FlEntityComponentSystemKernel::Instance().GetRegisteredComponentTypes();
+
+// 既にアタッチ済みのものは除外
+std::vector&lt;const char*&gt; attachableTypes;
+attachableTypes.reserve(allTypes.size());
+
+for (const auto& typeName : allTypes)
+{
+    bool alreadyAttached = false;
+    for (const auto& existingComp : FlEntityComponentSystemKernel::Instance().GetEntityComponentTypes(id))
+    {
+        if (existingComp == typeName)
+        {
+            alreadyAttached = true;
+            break;
+        }
+    }
+    if (!alreadyAttached)
+        attachableTypes.push_back(typeName.c_str());
+}
+
+// attachableTypes が空なら何も追加できない
+if (attachableTypes.empty())
+    ImGui::Text("No components available to attach.");
 else
-    ImGui::Text("No entity selected.");
+{
+    static int selectedIndex = 0;
+    // インデックスが範囲外にならないよう調整
+    if (selectedIndex >= attachableTypes.size())
+        selectedIndex = 0;
+
+    const char* preview = attachableTypes[selectedIndex];
+
+    if (ImGui::BeginCombo("##ComponentTypes", preview))
+    {
+        for (int i = 0; i &lt; attachableTypes.size(); ++i) {
+            bool selected = (selectedIndex == i);
+
+            if (ImGui::Selectable(attachableTypes[i], selected))
+                selectedIndex = i;
+
+            if (selected)
+                ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    ImGui::SameLine();
+
+    // ▼ Attach ボタン
+    if (ImGui::Button("Attach"))
+    {
+        try {
+            FlEntityComponentSystemKernel::Instance().AddComponent(attachableTypes[selectedIndex], id);
+        }
+        catch (...) {
+        }
+    }
+}
+
+ImGui::End();
 </code></pre>
 
         <div class="concept-block">
           <h4>🧠 技術的ポイント</h4>
           <ul>
             <li>
-              DLLControllerを通じて登録済みのコンポーネント型一覧を取得し、
-              アタッチ可能な種類をリアルタイムで抽出する <strong>型安全な拡張コンボボックス</strong>を実装。
-            </li>
-            <li>
-              削除は即時反映ではなく<code>DetachComponentLater()</code>による <strong>安全な遅延破棄</strong>を採用。
-              更新中の参照切れを防ぎ、安定したエディタ挙動を保証。
+              <code>FlEntityComponentSystemKernel</code>を通じて登録済みのコンポーネント型一覧を取得し、
+              アタッチ可能な種類をリアルタイムで抽出するコンボボックスを実装。
             </li>
             <li>
               Componentの<code>RenderImGui()</code>を通じて、<strong>ランタイム組み込みエディタ</strong>として
