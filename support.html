@@ -24,6 +24,7 @@
     <h2>ページナビゲーション</h2>
     <ul>
       <li><a href="#filewatcher">FlFileWatcher</a></li>
+      <li><a href="#visual-studio-manager">FlVisualStudioManager</a></li>
       <li><a href="#automatic-file-add">FlAutomaticFileAddSystem</a></li>
       <li><a href="#solutionparser">FlSolutionParser</a></li>
       <li><a href="#chronus">FlChronus</a></li>
@@ -53,7 +54,7 @@
       <p class="subtitle">開発支援・ユーティリティ構造</p>
     </header>
 
-    <section id="filewatcher" class="section highlight">
+    <section id="filewatcher" class="section">
       <h2>FlFileWatcher – ファイル監視と資産同期</h2>
       <p>
         <strong>FlFileWatcher</strong> は、エディタ環境におけるファイル変化の検出・自動更新・同期の中核です。
@@ -103,6 +104,63 @@ void FlFileWatcher::Start(Callback callback)
         <li>非同期監視によるUIブロッキングの回避</li>
         <li>フォルダ階層全体を再帰的に走査</li>
         <li>ファイル/ディレクトリ操作（追加・削除・移動・リネーム・コピー）を内包</li>
+      </ul>
+    </section>
+
+    <section id="visual-studio-manager" class="section highlight">
+      <h2>FlVisualStudioManager – Visual Studioのプロジェクト自動生成・追加</h2>
+      <p>
+        <strong>FlVisualStudioManager</strong> は、<code>FlScriptModuleEditor</code>で入力された名前でプロジェクトとフィルタと必要最低限のコードファイルを
+        テンプレートコードから作成または、そのプロジェクトの削除を行います。
+        .slnにプロジェクトを追加し、プリコンパイルヘッダなどの設定を済ませます。
+      </p>
+
+      <pre><code class="language-cpp">
+// --- 抜粋: FlVisualStudioProjectManager::CreateNewProject ---
+auto projDir = targetDir / projectName;
+
+// ---------------------------------------------------
+// (1) ディレクトリ作成
+// ---------------------------------------------------
+try {
+    std::filesystem::create_directories(projDir);
+}
+catch (...) {
+    FlEditorAdministrator::Instance().GetLogger()->AddErrorLog("Failed to create directory: %s", projDir.string().c_str());
+    return false;
+}
+
+// ---------------------------------------------------
+// (2) 初期コードファイル生成
+// ---------------------------------------------------
+if (!CreateSourceFiles(projDir, projectName)) {
+    return false;
+}
+
+// ---------------------------------------------------
+// (3) .vcxproj と .filters を生成
+// ---------------------------------------------------
+if (!CreateVcxproj(projDir, projectName)) return false;
+if (!CreateFilters(projDir, projectName)) return false;
+
+// ---------------------------------------------------
+// (4) .sln に Project を追加
+// ---------------------------------------------------
+auto projFile = projDir / (projectName + ".vcxproj");
+if (!AddProjectToSolution(m_solutionPath, projFile, projectName)) {
+    return false;
+}
+
+FlEditorAdministrator::Instance().GetLogger()->AddLog("Project '%s' created & added to solution.", projectName.c_str());
+return true;
+  </code></pre>
+
+      <h3>主な特徴</h3>
+      <ul>
+        <li>プロジェクトファイルの作成・削除</li>
+        <li>フィルタファイルの作成・削除</li>
+        <li>.sinへの動的追加・削除</li>
+        <li>Script用抽象化されたコンパイル対象外のコードファイルの自動生成</li>
       </ul>
     </section>
 
