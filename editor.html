@@ -359,49 +359,129 @@ if (isAssetsAndGuid)
           <p>
             C++スクリプトモジュールの作成・削除をGUI上で行うエディタ。
             <code>FlVisualStudioManager</code>を利用して、
-            <code>.vcxproj</code> および <code>.filters</code> ファイルを自動更新し、
-            新しいクラスをVisual Studioプロジェクトに即座に登録します。
+            <code>.vcxproj</code> および <code>.filters</code> ファイルを自動生成し、
+            <code>.sin</code>に追加します。
           </p>
         </div>
 
         <pre><code class="language-cpp">
-// --- 抜粋: FlScriptEditor::Render --- 
-if (ImGui::Begin(title.c_str(), p_open))
+// --- 抜粋: FlScriptModuleEditor::Render --- 
+if (ImGui::Begin(title.c_str(), p_open, flags))
 {
-    if (ImGui::Button("Refresh"))
-        RefreshFileList();
-
-    ImGui::Separator();
-    DrawFileList();
-
-    if (ImGui::BeginPopup("ScriptContextMenu"))
+    if (ImGui::Button("Create New Project"))
     {
-        if (ImGui::MenuItem("Create Script"))
-            m_pendingPopup = PopupRequest{ PopupRequest::Type::Create };
-        ImGui::EndPopup();
+        m_pendingPopup = PopupRequest{ PopupRequest::Type::Create };
     }
 
-    RenderPopup(); // Create / Delete popup を処理
+    for (auto& path : m_codeFiles)
+    {
+        ImGui::PushID(id++);
+
+        auto isChanged = m_meta->IsAssetChanged(path);
+
+        auto filename = std::filesystem::path(path).filename().string();
+        auto folder = std::filesystem::path(path).parent_path().filename().string();
+        const char* icon = "?";
+        auto ext = Str::FileExtensionSearcher(path);
+        if (ext == "cxx") icon = "SCC";
+
+        if (ImGui::BeginPopupContextItem("ProjectContext"))
+        {
+            if (ImGui::MenuItem("Delete Project"))
+            {
+                // プロジェクト名（フォルダ名）を保存
+                m_pendingPopup = PopupRequest{ PopupRequest::Type::Delete, folder };
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::Button(icon, iconSize);
+
+        if (ImGui::IsItemHovered() && ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+            ShellExecuteW(nullptr, L"open", ansi_to_wide(path).c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+
+        if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Right))
+            ImGui::OpenPopup("ProjectContext");
+
+        ImGui::TextWrapped("%s", filename.c_str());
+        ImGui::NextColumn();
+        ImGui::PopID();
+    }
+
+    RenderPopup();
 }
 ImGui::End();
 </code></pre>
 
         <pre><code class="language-cpp">
-// --- 抜粋: FlScriptEditor::RenderPopup --- 
-if (ImGui::BeginPopup("CreateScriptPopup"))
-{
-    ImGui::InputText("Class Name", &m_newClassName);
-    ImGui::InputText("Filter Name", &m_filterName);
+// --- 抜粋: FlScriptModuleEditor::RenderPopup --- 
+// --- Create Popup ---
+if (m_pendingPopup->type == PopupRequest::Type::Create)
+    ImGui::OpenPopup("CreateVSPopup");
 
-    if (ImGui::Button("Create") && !m_newClassName.empty())
+// --- Delete Popup ---
+if (m_pendingPopup->type == PopupRequest::Type::Delete)
+    ImGui::OpenPopup("DeleteProjectPopup");
+
+// ▼ Create ポップアップ（既存）
+if (ImGui::BeginPopup("CreateVSPopup"))
+{
+    ImGui::InputText("Project Name", &m_newProjectName);
+
+    if (ImGui::Button("Create") && !m_newProjectName.empty())
     {
-        if (m_autoAdd.CreateAndAdd(m_newClassName, m_filterName))
+        auto ok{ m_manager->CreateNewProject(
+            m_newProjectName,
+            m_targetDir
+        ) };
+
+        if (ok)
         {
-            FlEditorAdministrator::Instance().GetLogger()->AddLog(
-                "Script created: %s", m_newClassName.c_str());
-            RefreshFileList();
+            FlEditorAdministrator::Instance().GetLogger()->AddSuccessLog(
+                "Created new project: %s", m_newProjectName.c_str());
+            m_codeFiles = m_meta->GetAllFilePaths();
+            ChangedFilesRefresh();
         }
+        else
+        {
+            FlEditorAdministrator::Instance().GetLogger()->AddErrorLog(
+                "Failed to create project: %s", m_newProjectName.c_str());
+        }
+
+        m_newProjectName.clear();
+        m_pendingPopup.reset();
+        ImGui::CloseCurrentPopup();
     }
+
+    ImGui::EndPopup();
+}
+
+// ▼ Delete ポップアップ
+if (ImGui::BeginPopup("DeleteProjectPopup"))
+{
+    auto& projName = m_pendingPopup->targetProjectName;
+
+    ImGui::Text("Delete project \"%s\" ?", projName.c_str());
+    ImGui::Separator();
+
+    if (ImGui::Button("Delete"))
+    {
+        FlEntityComponentSystemKernel::Instance().ClearComponent(std::filesystem::path(projName).stem().string());
+
+        m_manager->RemoveProjectFromSolution((m_targetDir / projName / (projName + ".vcxproj")).lexically_normal());
+        
+        upFile->RemDirectory(dllPath);
+        upFile->RemDirectory(dir);
+
+        FlEditorAdministrator::Instance().GetLogger()->AddSuccessLog(
+            "Deleted project: %s", projName.c_str());
+
+        m_codeFiles = m_meta->GetAllFilePaths();
+
+        m_pendingPopup.reset();
+        ImGui::CloseCurrentPopup();
+    }
+
     ImGui::EndPopup();
 }
 </code></pre>
@@ -411,27 +491,16 @@ if (ImGui::BeginPopup("CreateScriptPopup"))
           <ul>
             <li>
               <strong>XMLパーサと自動追加システム:</strong>
-              <code>FlAutomaticFileAddSystem</code> クラスを通じて
-              <code>FlComponentSystem.vcxproj</code> と <code>.filters</code> を
-              <strong>XML解析・編集</strong>し、新規クラス追加時に自動反映。
-              外部IDE操作を必要とせず、エディタ内で完結。
-            </li>
-            <li>
-              <strong>ImGuiポップアップ設計:</strong>
-              「Create」「Delete」ポップアップを <code>PopupRequest</code> 構造体で一元管理。
-              ユーザー操作を逐次的にハンドリングし、状態遷移を簡潔化。
+              <code>FlSimpleCppParser</code> クラスが、
+              .cxxファイルを解析し、<a href="https://github.com/leethomason/tinyxml2">
+                tinyXml2</a>を利用した<code>FlAutomaticFileAddSystem</code> クラスを介して、
+              自動作成された.c++ファイルと.hhをプロジェクトに追加します。
             </li>
             <li>
               <strong>ファイル監視と自動更新:</strong>
-              <code>std::filesystem</code> により
-              <code>DynamicLib/FlComponentSystem/Src/ComponentSystem</code> ディレクトリをスキャン。
-              ヘッダ／ソース (.h/.cpp) の追加・削除を即時反映。
-            </li>
-            <li>
-              <strong>Visual Studioとの親和性:</strong>
-              エディタから生成されたスクリプトは
-              .vcxproj と .filters 双方に登録済みのため、
-              Visual Studioで即コンパイル可能。
+              <code>FlFileWatcher</code> により
+              <code>ScriptModule</code> ディレクトリを監視。
+              .cxxファイル変更を検知すれば即座に.c++ファイルと.hhを更新し、ビルドを行います。
             </li>
           </ul>
         </div>
@@ -440,95 +509,119 @@ if (ImGui::BeginPopup("CreateScriptPopup"))
           <h3>🧩 Hierarchy</h3>
           <p>
             シーン内のEntityを階層表示。
-            D&Dで親子関係を変更でき、右クリックメニューでPrefab作成・インスタンス化が可能。
+            D&Dで親子関係を変更が可能。
             Sceneの保存・読込ボタンで即座にJSONファイルとして管理します。
+            右クリックメニューでPrefabの作成、インスタンス化が可能。
           </p>
         </div>
 
         <pre><code class="language-cpp">
-// --- 抜粋: FlInspectorAndHierarchyEditor::RenderHierarchy ---
-if (ImGui::Begin(title.c_str(), p_open, flags))
+// --- 抜粋: FlECSInspectorAndHierarchy::RenderHierarchyWindow ---
+if (ImGui::Button("Save Scene"))
 {
-    if (ImGui::Button("Add Entity"))
-        scene.CreateEntity(scene.GetRootEntity());
-
-    if (ImGui::Button("Load Scene")) {
-        std::string filepath = "Assets/Scene/";
-        if (OpenFileDialog(filepath, "Load Scene",
-            "Scene Files (*.scene)\0*.scene\0All Files (*.*)\0*.*\0")) {
-            scene.LodeScene(filepath);
-        }
-    }
-
-    if (ImGui::Button("Save Scene")) {
-        std::string filepath = "Assets/Scene/";
-        if (SaveFileDialog(filepath, "Save Scene",
-            "Scene Files (*.scene)\0*.scene\0All Files (*.*)\0*.*\0", "scene")) {
-            scene.SaveScene(filepath);
-        }
-    }
-
-    if (ImGui::TreeNodeEx("Root", ImGuiTreeNodeFlags_DefaultOpen))
+    std::string filepath{ "Assets/Scene/" };
+    if (SaveFileDialog(filepath, "Save Scene", "Scene Files (*.flscene)\0*.flscene\0All Files (*.*)\0*.*\0", "flscene"))
+        FlJsonUtility::Serialize(FlEntityComponentSystemKernel::Instance().SerializeScene(), filepath);
+}
+ImGui::SameLine();
+if (ImGui::Button("Load Scene"))
+{
+    std::string filepath{ "Assets/Scene/" };
+    if (OpenFileDialog(filepath, "Load Scene", "Scene Files (*.flscene)\0*.flscene\0All Files (*.*)\0*.*\0"))
     {
-        for (auto& child : scene.GetRootEntity()->children)
-            if (auto sp = child.lock()) RenderEntityRecursive(sp);
-        ImGui::TreePop();
+        auto j{ nlohmann::json{} };
+        if (FlJsonUtility::Deserialize(j, filepath))
+        {
+            FlEntityComponentSystemKernel::Instance().DeserializeScene(j);
+            RefreshEntityList();
+        }
+        else
+            FlEditorAdministrator::Instance().GetLogger()->AddWarningLog("Failed load scene %s", filepath.c_str());
     }
 }
+
+if (ImGui::Button("Refresh"))
+    RefreshEntityList();
+
+ImGui::SameLine();
+if (ImGui::Button("Create Entity"))
+{
+    auto newID{ FlEntityComponentSystemKernel::Instance().CreateEntity() };
+    FlEntityComponentSystemKernel::Instance().AddComponent("Name", newID);
+    FlEntityComponentSystemKernel::Instance().AddComponent("Transform", newID);
+    RefreshEntityList();
+}
+
+ImGui::Separator();
+
+// ---- ROOT ノードだけ描画 ----
+for (auto rootId : GetRootEntities())
+    RenderEntityNode(rootId);
+
 ImGui::End();
+</code></pre>
+
+        <pre><code class="language-cpp">
+// --- 抜粋: FlECSInspectorAndHierarchy::RenderEntityNode ---
+auto& kernel = FlEntityComponentSystemKernel::Instance();
+
+bool selected = (m_selectedEntityId == id);
+
+ImGuiTreeNodeFlags flags = ImGuiTreeNodeFlags_OpenOnArrow |
+    ImGuiTreeNodeFlags_OpenOnDoubleClick |
+    (selected ? ImGuiTreeNodeFlags_Selected : 0);
+
+// ---- Drop Target ----
+if (ImGui::BeginDragDropTarget())
+{
+    if (auto payload = ImGui::AcceptDragDropPayload("ENTITY_ID"))
+    {
+        uint32_t childId = *(uint32_t*)payload->Data;
+        if (childId != id)
+            SetParent(childId, id);
+    }
+    ImGui::EndDragDropTarget();
+}
+
+// ---- Right Click Context Menu ----
+if (ImGui::BeginPopupContextItem())
+{
+  if (ImGui::MenuItem("Delete Entity"))
+  {
+      DeleteEntityRecursive(id);
+      ImGui::EndPopup();
+      if (open) ImGui::TreePop();
+      return;
+  }
+  if (ImGui::MenuItem("Termination of Parent"))
+      SetParent(id, UINT32_MAX);
+	if (ImGui::MenuItem("Create Prefab"))
+		CreatePrefab(id);
+	if (ImGui::MenuItem("Instantiate Prefab"))
+	{
+		std::string path{ "Assets/Prefabs/" };
+		if (OpenFileDialog(path, "Load Prefab", "Prefab (*.flprefab)\0*.flprefab\0"))
+			InstantiatePrefab(path);
+	}
+    ImGui::EndPopup();
+}
+
+if (open)
+{
+    if (tc)
+    {
+        for (auto child : tc->m_children)
+            RenderEntityNode(child);
+    }
+    ImGui::TreePop();
+}
 </code></pre>
 
         <div class="concept-block">
           <h4>🌳 技術的ポイント</h4>
           <ul>
             <li>ルートEntityを起点に、<strong>再帰的に子Entityをツリー構造として描画</strong>。</li>
-            <li>右クリックメニューから、Entityの生成・Prefab作成・削除・リネームを行える。</li>
             <li>Scene保存／読込はファイルダイアログを通じて即時反映。</li>
-          </ul>
-        </div>
-
-        <pre><code class="language-cpp">
-// --- 抜粋: FlInspectorAndHierarchyEditor::RenderEntityRecursive ---
-bool nodeOpen = ImGui::TreeNodeEx(
-    (void*)(intptr_t)spEnt->id,
-    flags,
-    "%s", spEnt->name.c_str()
-);
-
-// クリックで選択
-if (ImGui::IsItemClicked(0) || ImGui::IsItemClicked(1))
-    m_selectedEntity = spEnt;
-
-// Drag & Drop による階層変更
-if (ImGui::BeginDragDropSource())
-{
-    ImGui::SetDragDropPayload("ENTITY_DRAG", &spEnt->id, sizeof(int));
-    ImGui::Text("Dragging Entity %d", spEnt->id);
-    ImGui::EndDragDropSource();
-}
-
-if (ImGui::BeginDragDropTarget())
-{
-    if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ENTITY_DRAG"))
-    {
-        int draggedId = *static_cast<int*>(payload->Data);
-        auto draggedEntity = FlScene::Instance().GetEntityById(draggedId).lock();
-        if (draggedEntity && draggedEntity != spEnt)
-        {
-            // 親子関係の再構築処理
-            ...
-        }
-    }
-    ImGui::EndDragDropTarget();
-}
-</code></pre>
-
-        <div class="concept-block">
-          <h4>🪄 技術的ポイント</h4>
-          <ul>
-            <li>ImGuiのDrag & Dropシステムを活用し、<strong>Entity間の親子関係をGUIで再構築可能</strong>。</li>
-            <li>名前変更はInputTextを用いたインライン編集方式で、フォーカス制御も厳密。</li>
-            <li><code>FlScene</code>と<code>CSDLLController</code>を連携させ、Prefab生成・インスタンス化などのScene管理操作を直接統合。</li>
           </ul>
         </div>
 
