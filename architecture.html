@@ -26,7 +26,7 @@
       <li><a href="#architecture-diagram">Architecture Diagram</a></li>
       <li><a href="#renderer-layer">Renderer Layer</a></li>
       <li><a href="#hot-reload-flow">Hot Reload Flow</a></li>
-      <li><a href="#interface_boundaries">Interface Boundaries</a></li>
+      <li><a href="#features">Features</a></li>
       <li><a href="#navigation">Next Pages</a></li>
     </ul>
 
@@ -158,16 +158,30 @@ for (auto&& layout : m_semanticsLayout)
       </div>
     </section>
 
-    <section id="interface_boundaries" class="section highlight">
-      <h2>Interface Boundaries</h2>
-
-      <p>
-        境界越境制約(Interface Boundaries)は、C ABI互換性を持たせまた、例外を越境させないことを約束します。<br>
-        C ABI互換性を持たせるために<a
-          href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、POD化には多くの制約がありこれを改善するため共通のヘッダに構造体を宣言し、インスタンスのポインタでやり取りを行っています。
-        そのため.cxxファイルは抽象化したテンプレートコードであり、実際に動く.c++ファイルはこの制約を厳守した形にしています。
-      </p>
-
+    <section id="features" class="section highlight">
+      <h2>Features</h2>
+      <div class="concept-block">
+        <h3>Interface Boundaries</h3>
+        <p>
+          境界越境制約(Interface Boundaries)は、C ABI互換性を持たせまた、例外を越境させないことを約束します。<br>
+          C ABI互換性を持たせるために<a
+            href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、POD化には多くの制約がありこれを改善するため共通のヘッダに構造体を宣言し、インスタンスのポインタでやり取りを行っています。
+          そのため.cxxファイルは抽象化したテンプレートコードであり、実際に動く.c++ファイルはこの制約を厳守した形にしています。
+        </p>
+      </div>
+      <div class="concept-block">
+        <h3>Reflection</h3>
+        <p>
+          Scriptを生成するたびにプロジェクトが生成されるため、Scriptが自分以外のScriptを参照することだできなくなってします。
+          この問題を解決するために<a
+            href="https://dev.epicgames.com/documentation/ja-jp/unreal-engine/unreal-header-tool-for-unreal-engine">Unreal
+            Header Tool(UHT)</a>
+          について調べました。UHTはC++でもReflectionできるようにUEに搭載されているツールです。
+          これを完全に実装するにはあまりにもコストが高いので、自分なりに解釈し簡易的に実装しました。
+          各Scriptは構造体宣言を.hhファイルで公開し、ランタイムからEntity IDにあったインスタンスのポインタを受け取ります。
+          こうすることでC++でもReflectionを行うことができます。
+        </p>
+      </div>
     </section>
 
     <section id="navigation" class="section">
