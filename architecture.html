@@ -164,15 +164,15 @@ for (auto&& layout : m_semanticsLayout)
         <h3>Interface Boundaries</h3>
         <p>
           境界越境制約(Interface Boundaries)は、C ABI互換性を持たせまた、例外を越境させないことを約束します。<br>
-          C ABI互換性を持たせるために<a
-            href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、POD化には多くの制約がありこれを改善するため共通のヘッダに構造体を宣言し、インスタンスのポインタでやり取りを行っています。
+          C ABI互換性を持たせるために<a href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、
+          POD化には多くの制約がありこれを改善するため共通のヘッダに関数テーブルの構造体を宣言し、インスタンスのポインタでやり取りを行っています。
           そのため.cxxファイルは抽象化したテンプレートコードであり、実際に動く.c++ファイルはこの制約を厳守した形にしています。
         </p>
       </div>
       <div class="concept-block">
         <h3>Reflection</h3>
         <p>
-          Scriptを生成するたびにプロジェクトが生成されるため、Scriptが自分以外のScriptを参照することだできなくなってします。
+          Scriptを生成するたびにプロジェクトが生成されるため、Scriptが自分以外のScriptを参照することができなくなってします。
           この問題を解決するために<a
             href="https://dev.epicgames.com/documentation/ja-jp/unreal-engine/unreal-header-tool-for-unreal-engine">Unreal
             Header Tool(UHT)</a>
