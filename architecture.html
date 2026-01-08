@@ -66,10 +66,10 @@
       <div class="concept-block">
         <h3>DirectX12</h3>
         <p>
-          <a href="https://www.nuget.org/packages/Microsoft.Direct3D.D3D12">DirectX12(DX12)</a>を利用したレンダラーを使用しています。
+          <a href="https://www.nuget.org/packages/Microsoft.Direct3D.D3D12">DirectX12 (DX12)</a>を利用したレンダラーを使用しています。
           コマンドリスト型の描画命令を行うことでの高速化を行います。
           <br>
-          また、Pipeline State Object(PSO)をキャッシュ化しPSOの都度作成するコストをカットしています。
+          また、Pipeline State Object (PSO) をキャッシュ化し、都度作成するコストをカットしています。
         <pre><code class="language-cpp">
 std::string Pipeline::GeneratePSOKey(BlendMode blendMode, CullMode cullMode, PrimitiveTopologyType topologyType,
   bool isDepth, bool isDepthMask, int rtvCount, bool isWireFrame) const
@@ -85,7 +85,7 @@ std::string Pipeline::GeneratePSOKey(BlendMode blendMode, CullMode cullMode, Pri
         </code></pre>
         上記のコードでカギを作成し<a href="https://refactoring.guru/ja/design-patterns/flyweight">フライウェイト形式</a>でPSOを管理します。
         <br>
-        さらに、Vertex Shader(VS)に渡す頂点バッファをStruct of Arrays(SoA)にすることでキャッシュライン上を同義の情報で満たすため、
+        さらに、Vertex Shader (VS) に渡す頂点バッファをStruct of Arrays (SoA) にすることでキャッシュライン上を同義の情報で満たすため、
         プリフェッチによるキャッシュヒット率の向上を見込めます。
         <pre><code class="language-cpp">
 for (auto&& layout : m_semanticsLayout)
@@ -110,7 +110,7 @@ for (auto&& layout : m_semanticsLayout)
         </code></pre>
         上記のコードで頂点バッファをVSのレイアウトの分作成します。
         <br>
-        VSのhlslもしくはcsoを解析したときに引数のレイアウト情報を抽出するため、引数が変動してもRuntimeを変更する必要はなく柔軟に対応できます。
+        VSのhlslもしくはcsoを解析したときに引数のレイアウト情報を抽出するため、引数が変動してもRuntimeを変更する必要がなく柔軟に対応できます。
         </p>
     </section>
 
@@ -163,7 +163,7 @@ for (auto&& layout : m_semanticsLayout)
       <div class="concept-block">
         <h3>Interface Boundaries</h3>
         <p>
-          境界越境制約(Interface Boundaries)は、C ABI互換性を持たせまた、例外を越境させないことを約束します。<br>
+          境界越境制約 (Interface Boundaries) は、C ABI互換性を持たせ、また例外を越境させないことを約束します。<br>
           C ABI互換性を持たせるために<a href="https://ja.wikipedia.org/wiki/POD">POD</a>化という選択肢がありますが、
           POD化には多くの制約がありこれを改善するため共通のヘッダに関数テーブルの構造体を宣言し、インスタンスのポインタでやり取りを行っています。
           そのため.cxxファイルは抽象化したテンプレートコードであり、実際に動く.c++ファイルはこの制約を厳守した形にしています。
@@ -172,10 +172,10 @@ for (auto&& layout : m_semanticsLayout)
       <div class="concept-block">
         <h3>Reflection</h3>
         <p>
-          Scriptを生成するたびにプロジェクトが生成されるため、Scriptが自分以外のScriptを参照することができなくなってします。
+          Scriptを生成するたびにプロジェクトが生成されるため、Scriptが自分以外のScriptを参照することができなくなってしまいます。
           この問題を解決するために<a
             href="https://dev.epicgames.com/documentation/ja-jp/unreal-engine/unreal-header-tool-for-unreal-engine">Unreal
-            Header Tool(UHT)</a>
+            Header Tool (UHT)</a>
           について調べました。UHTはC++でもReflectionできるようにUEに搭載されているツールです。
           これを完全に実装するにはあまりにもコストが高いので、自分なりに解釈し簡易的に実装しました。
           各Scriptは構造体宣言を.hhファイルで公開し、ランタイムからEntity IDにあったインスタンスのポインタを受け取ります。

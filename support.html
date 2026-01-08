@@ -59,7 +59,7 @@
       <p>
         <strong>FlFileWatcher</strong> は、エディタ環境におけるファイル変化の検出・自動更新・同期の中核です。
         <code>std::filesystem</code> と <code>std::thread</code> を活用し、非同期にディレクトリ全体を監視します。
-        更新が検出されると、即座にコールバックを通じて関連システム（例：メタファイル更新・アセット再ロード）へ反映します。
+        更新が検出されると、即座にコールバックを通じて関連システム (例：メタファイル更新・アセット再ロード) へ反映します。
       </p>
 
       <pre><code class="language-cpp">
@@ -103,7 +103,7 @@ void FlFileWatcher::Start(Callback callback)
         <li><code>Created / Modified / Erased</code> の3状態をリアルタイム検出</li>
         <li>非同期監視によるUIブロッキングの回避</li>
         <li>フォルダ階層全体を再帰的に走査</li>
-        <li>ファイル/ディレクトリ操作（追加・削除・移動・リネーム・コピー）を内包</li>
+        <li>ファイル/ディレクトリ操作 (追加・削除・移動・リネーム・コピー) を内包</li>
       </ul>
     </section>
 
@@ -111,7 +111,7 @@ void FlFileWatcher::Start(Callback callback)
       <h2>FlVisualStudioManager – Visual Studioのプロジェクト自動生成・追加</h2>
       <p>
         <strong>FlVisualStudioManager</strong> は、<code>FlScriptModuleEditor</code>で入力された名前でプロジェクトとフィルタと必要最低限のコードファイルを
-        テンプレートコードから作成または、そのプロジェクトの削除を行います。
+        テンプレートコードから作成、またはそのプロジェクトの削除を行います。
         .slnにプロジェクトを追加し、プリコンパイルヘッダなどの設定を済ませます。
       </p>
 
@@ -300,7 +300,7 @@ return true;
       <p>
         <strong>FlSolutionParser</strong> は、Visual Studio の <code>.sln</code> ファイルを解析し、
         含まれる <code>.vcxproj</code> プロジェクトの構造情報を抽出するためのユーティリティです。
-        エディタ内部では、プロジェクトのBuildに活用されています。
+        Editor内部では、プロジェクトのBuildに活用されています。
       </p>
 
       <pre><code class="language-cpp">
@@ -347,7 +347,7 @@ bool FlSolutionParser::Load(const std::filesystem::path&amp; slnPath)
 
       <h3>主な特徴</h3>
       <ul>
-        <li>Visual Studio ソリューション（<code>.sln</code>）ファイルの構造を正確に解析</li>
+        <li>Visual Studio ソリューション (<code>.sln</code>) ファイルの構造を正確に解析</li>
         <li><code>.vcxproj</code> パス・プロジェクト名を動的に取得</li>
         <li>文字列解析には安全なクォート位置検出を採用</li>
         <li><code>FindProjectByName()</code> による検索機能を提供</li>
@@ -366,7 +366,7 @@ if (parser.Load("FalconEngine.sln")) {
   </code></pre>
 
       <p>
-        このクラスは、msBuildコマンドでBuildもしくはCleanする用にソリューションに含まれるプロジェクトの名前とパスを検出します。
+        このクラスは、MSBuildコマンドでBuildもしくはCleanを行うために、ソリューションに含まれるプロジェクトの名前とパスを検出します。
       </p>
     </section>
 
@@ -383,8 +383,8 @@ if (parser.Load("FalconEngine.sln")) {
 class FlChronus 
 {
 public:
-    using Steady = std::chrono::steady_clock;   // 経過時間用（単調時計）
-    using System = std::chrono::system_clock;   // 現実時間用（壁時計）
+    using Steady = std::chrono::steady_clock;   // 経過時間用 (単調時計)
+    using System = std::chrono::system_clock;   // 現実時間用 (壁時計)
 
     FlChronus(bool startNow = true) { if (startNow) start(); }
 
@@ -450,15 +450,15 @@ class FlEasing
 public:
     static double Linear(double t) noexcept { return t; }
 
-    // 二次曲線（Quad）
+    // 二次曲線 (Quad)
     static double EaseInQuad(double t) noexcept { return t * t; }
     static double EaseOutQuad(double t) noexcept { return t * (2 - t); }
 
-    // 三次曲線（Cubic）
+    // 三次曲線 (Cubic)
     static double EaseInCubic(double t) noexcept { return t * t * t; }
     static double EaseOutCubic(double t) noexcept { return 1 + (--t) * t * t; }
 
-    // 正弦補間（Sine）
+    // 正弦補間 (Sine)
     static double EaseInSine(double t) noexcept {
         return 1 - std::cos((t * M_PI) / 2.0);
     }
@@ -599,7 +599,7 @@ private:
         <li><strong>.flmeta</strong> ファイルの自動生成・更新・削除を監視ベースで実施</li>
         <li>ファイル名変更やディレクトリ移動時にもメタ情報を追従</li>
         <li><strong>GUID</strong> によるアセット一意識別と逆引き検索</li>
-        <li>親フォルダの更新や削除にも自動反映（再帰的管理）</li>
+        <li>親フォルダの更新や削除にも自動反映 (再帰的管理)</li>
         <li>アセット更新日時を <code>lastModified</code> / <code>lastUpdated</code> として記録</li>
       </ul>
 
@@ -661,7 +661,7 @@ meta.OnAssetRenamedOrMoved("Assets/Textures/skybox.png", "Assets/Environment/sky
         <li>GUID 発行は <code>FlGuid</code> により生成・保持（再発行防止）</li>
         <li><code>FlJsonUtility</code> 経由でメタ情報をシリアライズ / デシリアライズ</li>
         <li><code>FlEditorAdministrator</code> と連携し、操作ログを自動追加</li>
-        <li>メタファイルは<code>.FlMeta</code>という隠しディレクトリ内に入れ他のAssetファイルとの混合を避る</li>
+        <li>メタファイルは<code>.FlMeta</code>という隠しディレクトリ内に入れ他のAssetファイルとの混合を避ける</li>
       </ul>
 
       <p>

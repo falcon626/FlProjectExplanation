@@ -184,9 +184,10 @@ ImGui::End();
           <h4>🧭 技術的ポイント</h4>
           <ul>
             <li><code>std::filesystem</code> を用いて動的にディレクトリツリーを構築し、ファイル構造の変更を即時反映。</li>
-            <li>外部ファイルのドラッグ＆ドロップ(D&D)を検知し、同名衝突時には <strong>自動で "_copy[n]" 連番処理</strong>を行う安全設計。</li>
+            <li>外部ファイルのドラッグ＆ドロップ (D&D) を検知し、同名衝突時には <strong>自動で "_copy[n]" 連番処理</strong>を行う安全設計。</li>
             <li>
-              ImGuiのポップアップメニュー（右クリック）を活用して、<strong>エクスプローラ連携・クリエイト・リネーム・コピー(GUIDもしくはパス)・ペースト・削除</strong>などをワンクリックで操作可能。
+              ImGuiのポップアップメニュー (右クリック) を活用して、<strong>エクスプローラ連携・クリエイト・リネーム・コピー (GUIDもしくはパス)
+                ・ペースト・削除</strong>などをワンクリックで操作可能。
             </li>
           </ul>
         </div>
@@ -235,11 +236,12 @@ if (ImGui::BeginPopupContextItem())
         <div class="concept-block">
           <h4>📂 技術的ポイント</h4>
           <ul>
-            <li><strong>右クリックメニュー</strong>はImGuiの <code>BeginPopupContextItem()</code> を利用して即時生成し、コード量を分割化。
+            <li>
+              <strong>右クリックメニュー</strong>はImGuiの <code>BeginPopupContextItem()</code> を利用して即時生成し、コード量を分割化。
               <br>そして、警告文やキャンセルなどの選択肢を出し誤操作を回避します。
             </li>
             <li>各ファイル・ディレクトリに対し、<strong>GUIDメタ情報を関連付け</strong>て一貫したアセット管理を実現。</li>
-            <li>メタファイル追従（リネーム・移動検知）は <code>FlResourceAdministrator</code> 経由で処理され、GUID再発行を防止。</li>
+            <li>メタファイル追従 (リネーム・移動検知) は <code>FlResourceAdministrator</code> 経由で処理され、GUID再発行を防止。</li>
           </ul>
         </div>
 
@@ -510,8 +512,8 @@ if (ImGui::BeginPopup("DeleteProjectPopup"))
           <p>
             シーン内のEntityを階層表示。
             D&Dで親子関係を変更が可能。
-            Sceneの保存・読込ボタンで即座にJSONファイルとして管理します。
-            右クリックメニューでPrefabの作成、インスタンス化が可能。
+            Sceneの保存・読込ボタンで、即座にJSONファイルへの保存・読込を行います。
+            右クリックメニューからPrefabの作成やインスタンス化が可能です。
           </p>
         </div>
 
