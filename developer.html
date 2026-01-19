@@ -47,7 +47,7 @@
       <p class="subtitle">なぜこの設計なのか ― 実装思想と技術的判断の背景</p>
     </header>
 
-    <section id="overview" class="section highlight">
+    <section id="overview" class="section">
       <h2>Overview</h2>
       <p>
         <a href="https://learning.unity3d.jp/1568/">Hybrid ECS</a>は、<strong>「ECSかつ実用重視」</strong>をテーマに構築されました。
@@ -56,7 +56,7 @@
       </p>
     </section>
 
-    <section id="design" class="section">
+    <section id="design" class="section highlight">
       <h2>Design</h2>
       <ul>
         <li>回転行列のUI操作でのジンバルロック現象（最終的にクオータニオンで処理）</li>
@@ -64,6 +64,55 @@
         <li>DirectX12のデバック（<a href="https://developer.nvidia.com/nsight-systems#Platforms">NSight</a>のベータ版か<a
             href="https://devblogs.microsoft.com/pix/download/">PIX</a>かの外部ツールに頼るしかなかった）</li>
       </ul>
+    </section>
+
+    <section id="production-costs" class="section">
+      <h2>Production Costs</h2>
+      <p>
+        今回、開発した<strong>Falcon IDE</strong>での削除できた工数について。
+      <div class="concept-block">
+        <h3>コードファイルの作成</h3>
+        <p>
+          開発にMSVSを使うとして1つのクラスを実装するには、まず追加したいフィルター上で右クリックし、
+          「追加」→「新しい項目」を選択し、
+          表示されるテンプレートから「ヘッダファイル」を選択し、ファイル名を入力して追加したディレクトリを選択し「追加」をクリックします。
+          その後、同様にC++ファイルも追加します。
+        </p>
+      </div>
+      <div class="concept-block">
+        <h3>プロジェクトの作成</h3>
+        <p>
+          同じくMSVSでプロジェクトを作成したい場合、ソリューションの上で右クリックし、
+          「追加」→「新しいプロジェクト」を選択し、
+          表示されるテンプレートからC++の適切なプロジェクトを選択し、プロジェクト名を入力して置きたいディレクトリを選択。
+        </p>
+      </div>
+      <div class="concept-block">
+        <h3>初期設定</h3>
+        <p>
+          プロジェクトを生成した後に、プリコンパイルヘッダやパッケージの設定、フィルタの設定などを行う必要がある。
+        </p>
+      </div>
+      <div class="concept-block">
+        <h3>コードの記述と制約</h3>
+        <p>
+          コードを書きますが、ある程度決まっている内容をまたコピペもしくは書かなくてはいけません。
+          そして、DLLである場合ランタイムとのInterface Boundaryを気にしなくてはいけません。
+        </p>
+      </div>
+      ここまでの工程を<strong>Falcon IDE</strong>ではエディタ上のボタンをクリック→名前入力→Createボタンをクリックですべて完結します。
+      <ui>
+        <li>
+          ソリューションエクスプローラー上でクリック→追加→新しいプロジェクト→プロジェクトテンプレート選択→プロジェクト名入力→ディレクトリ選択→追加<br>
+          →プリコンパイルヘッダの設定→言語のバージョン設定→インクルードパスの設定→アウトプット設定→その他設定→フィルタ設定<br>
+          →新しい項目→ヘッダファイル→名前入力→ディレクトリ選択→追加→新しい項目→ソースファイル→名前入力→追加<br>
+          →プロジェクトに合わせた制約を守ったコードを記述<br>
+        </li>
+        <li>
+          Falcon IDE上でボタンをクリック→名前入力→Createボタンをクリック
+        </li>
+      </ui>
+      </p>
     </section>
 
     <section id="past" class="section highlight">
