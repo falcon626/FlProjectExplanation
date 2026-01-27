@@ -116,8 +116,8 @@ for (auto&& layout : m_semanticsLayout)
 		CreateVertexBuffer(vertices.Normal, sizeof(Math::Vector3),
 			ansi_to_wide(_CRT_STRINGIZE_(vertices.Normal)), &m_pNorBuffer, m_norView, m_views, vertexCount);
 		break;
-  ...
-  }
+	...
+	}
 }
         </code></pre>
         上記のコードで頂点バッファをVSのレイアウトの分作成します。
